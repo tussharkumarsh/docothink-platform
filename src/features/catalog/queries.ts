@@ -1,8 +1,8 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { Temporal } from "temporal-polyfill";
-import { createPublicClient } from "@/lib/supabase/admin";
-import { isSupabaseConfigured } from "@/lib/env";
+import { createAdminClient, createPublicClient } from "@/lib/supabase/admin";
+import { isSupabaseConfigured, serverEnv } from "@/lib/env";
 import { generateSlots, type AvailabilityRule, type Slot } from "@/lib/time/slots";
 import type { ConsultationMode } from "@/lib/domain";
 
@@ -100,6 +100,7 @@ export type DoctorFilters = {
   country?: string;
   currency?: string;
   maxFee?: number;
+  minExperience?: number;
   q?: string;
 };
 
@@ -119,6 +120,7 @@ export async function searchDoctors(filters: DoctorFilters): Promise<DoctorCard[
   if (filters.mode) query = query.not(`fee_${filters.mode}`, "is", null);
   if (filters.language) query = query.contains("languages", [filters.language]);
   if (filters.country) query = query.eq("country", filters.country);
+  if (filters.minExperience) query = query.gte("years_experience", filters.minExperience);
   if (filters.q) query = query.ilike("display_name", `%${filters.q.replace(/[%_,()]/g, "")}%`);
   if (filters.currency && filters.maxFee != null) {
     const col = `fee_${filters.mode ?? "video"}`;
@@ -138,6 +140,22 @@ export async function getFeaturedDoctors(): Promise<DoctorCard[]> {
   cacheTag("doctors");
   const all = await searchDoctors({});
   return all.slice(0, 4);
+}
+
+/**
+ * Completed consultations, for the public stats band. Appointments aren't readable with the public
+ * key, so this counts with the server-only admin client and returns null when it isn't configured.
+ */
+export async function getCompletedConsultationCount(): Promise<number | null> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("stats");
+  if (!isSupabaseConfigured || !serverEnv().supabaseSecretKey) return null;
+  const { count, error } = await createAdminClient()
+    .from("appointments")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "completed");
+  return error ? null : count;
 }
 
 export async function getDoctorBySlug(slug: string): Promise<DoctorDetail | null> {

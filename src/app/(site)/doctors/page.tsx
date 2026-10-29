@@ -8,7 +8,8 @@ import { getDoctorBySlug, getDoctorSlots, getSpecialties, searchDoctors, type Do
 import { DoctorCard } from "@/features/catalog/components/doctor-card";
 import { CONSULTATION_MODES, MODE_LABELS, type ConsultationMode } from "@/lib/domain";
 import { CURRENCIES, toMinor } from "@/lib/money";
-import { formatDateTime, isValidTimezone } from "@/lib/time/format";
+import { formatDateTime, formatTime, isValidTimezone } from "@/lib/time/format";
+import { AVAILABILITY_OPTIONS, SORT_OPTIONS, availabilityMatches, nextAvailableDay, parseSort, sortDoctors } from "@/features/catalog/discovery";
 import { TimezoneCookie } from "@/features/catalog/components/timezone-cookie";
 
 export const metadata: Metadata = { title: "Find a doctor" };
@@ -20,8 +21,21 @@ const COUNTRIES = [
   ["US", "United States"],
 ];
 
+const EXPERIENCE_OPTIONS = [5, 10, 15];
+
 function one(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+/** Current filters with some values replaced, as a /doctors link. */
+function withParams(params: Record<string, string | string[] | undefined>, changes: Record<string, string>) {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    const v = one(value);
+    if (v) next.set(key, v);
+  }
+  for (const [key, value] of Object.entries(changes)) next.set(key, value);
+  return `/doctors?${next.toString()}`;
 }
 
 export default async function DoctorsPage({ searchParams }: PageProps<"/doctors">) {
@@ -37,11 +51,14 @@ export default async function DoctorsPage({ searchParams }: PageProps<"/doctors"
     q: one(params.q)?.slice(0, 80) || undefined,
     currency: currency && CURRENCIES.includes(currency as never) ? currency : undefined,
     maxFee: currency && maxFeeMajor ? (toMinor(maxFeeMajor, currency) ?? undefined) : undefined,
+    minExperience: EXPERIENCE_OPTIONS.includes(Number(one(params.experience))) ? Number(one(params.experience)) : undefined,
   };
-  const availableWithin = Number(one(params.available) ?? 0);
+  const available = one(params.available) ?? "";
+  const sort = parseSort(one(params.sort));
 
   const tzCookie = (await cookies()).get("tz")?.value;
   const viewerTz = tzCookie && isValidTimezone(tzCookie) ? tzCookie : "UTC";
+  const now = nowMs();
 
   const [specialties, doctors] = await Promise.all([getSpecialties(), searchDoctors(filters)]);
 
@@ -52,10 +69,16 @@ export default async function DoctorsPage({ searchParams }: PageProps<"/doctors"
       return { doctor, next: slots[0]?.start ?? null };
     }),
   );
-  const cutoff = nowMs() + availableWithin * 86_400_000;
-  const visible = availableWithin
-    ? withAvailability.filter((d) => d.next && Date.parse(d.next) <= cutoff)
-    : withAvailability;
+  const visible = sortDoctors(
+    withAvailability.filter((d) => availabilityMatches(d.next, available, viewerTz, now)),
+    sort,
+  );
+
+  function nextLabel(next: string | null) {
+    if (!next) return null;
+    const day = nextAvailableDay(next, viewerTz, now);
+    return day ? `${day === "today" ? "Today" : "Tomorrow"}, ${formatTime(next, viewerTz)}` : formatDateTime(next, viewerTz, { withZone: false });
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -111,13 +134,18 @@ export default async function DoctorsPage({ searchParams }: PageProps<"/doctors"
               <p className="text-xs text-slate-500">Fees are set per doctor in their currency.</p>
             </fieldset>
             <Field label="Availability" htmlFor="available">
-              <Select id="available" name="available" defaultValue={String(availableWithin || "")}>
+              <Select id="available" name="available" defaultValue={available}>
                 <option value="">Any time</option>
-                <option value="1">Within 24 hours</option>
-                <option value="3">Within 3 days</option>
-                <option value="7">Within 7 days</option>
+                {AVAILABILITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </Select>
             </Field>
+            <Field label="Experience" htmlFor="experience">
+              <Select id="experience" name="experience" defaultValue={String(filters.minExperience ?? "")}>
+                <option value="">Any</option>
+                {EXPERIENCE_OPTIONS.map((y) => <option key={y} value={y}>{y}+ years</option>)}
+              </Select>
+            </Field>
+            <input type="hidden" name="sort" value={sort} />
             <div className="flex gap-2">
               <Button type="submit" className="flex-1">Apply filters</Button>
               <Link href="/doctors" className="inline-flex items-center px-2 text-sm text-slate-600 hover:underline">Reset</Link>
@@ -126,7 +154,28 @@ export default async function DoctorsPage({ searchParams }: PageProps<"/doctors"
         </Card>
 
         <section aria-live="polite">
-          <p className="mb-4 text-sm text-slate-500">{visible.length} doctor{visible.length === 1 ? "" : "s"} found</p>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-500">{visible.length} doctor{visible.length === 1 ? "" : "s"} found</p>
+            <nav aria-label="Sort doctors" className="flex flex-wrap gap-1.5">
+              {SORT_OPTIONS.map((o) => (
+                <Link
+                  key={o.value}
+                  href={withParams(params, { sort: o.value })}
+                  aria-current={sort === o.value ? "true" : undefined}
+                  className={
+                    sort === o.value
+                      ? "rounded-full bg-slate-900 px-3 py-1 text-[13px] font-medium text-white"
+                      : "rounded-full bg-slate-100 px-3 py-1 text-[13px] text-slate-700 hover:bg-slate-200/70"
+                  }
+                >
+                  {o.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+          {sort.startsWith("fee") && !filters.currency && (
+            <p className="mb-4 text-xs text-slate-500">Fees are compared within each currency.</p>
+          )}
           {visible.length === 0 ? (
             <Card>
               <EmptyState
@@ -141,7 +190,7 @@ export default async function DoctorsPage({ searchParams }: PageProps<"/doctors"
                 <DoctorCard
                   key={doctor.user_id}
                   doctor={doctor}
-                  nextAvailable={next ? formatDateTime(next, viewerTz, { withZone: false }) : null}
+                  nextAvailable={nextLabel(next)}
                 />
               ))}
             </div>

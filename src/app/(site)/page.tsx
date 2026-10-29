@@ -2,8 +2,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { CalendarClock, ChevronRight, FileText, Globe2, Lock, MessageSquare, Phone, ShieldCheck, Stethoscope, Video } from "lucide-react";
 import { ButtonLink, Card } from "@/components/ui";
-import { getConditions, getFeaturedDoctors, getSpecialties } from "@/features/catalog/queries";
+import {
+  getCompletedConsultationCount,
+  getConditions,
+  getFeaturedDoctors,
+  getSpecialties,
+  searchDoctors,
+  type DoctorCard as DoctorCardData,
+} from "@/features/catalog/queries";
+import { lowestFeesBySpecialty } from "@/features/catalog/discovery";
 import { DoctorCard } from "@/features/catalog/components/doctor-card";
+import { formatPrice } from "@/lib/money";
 import { FAQ_GROUPS } from "@/content/faqs";
 
 function SectionHeading({ title, description, align = "center" }: { title: string; description?: string; align?: "center" | "left" }) {
@@ -15,8 +24,34 @@ function SectionHeading({ title, description, align = "center" }: { title: strin
   );
 }
 
+/** Live counts only; consultations appear once the number is meaningful. */
+function platformStats(listed: DoctorCardData[], completed: number | null) {
+  const stats = [
+    { value: listed.length, label: listed.length === 1 ? "Verified doctor" : "Verified doctors" },
+    { value: new Set(listed.flatMap((d) => d.specialties.map((s) => s.slug))).size, label: "Specialties covered" },
+    { value: new Set(listed.map((d) => d.country).filter(Boolean)).size, label: "Countries" },
+    { value: new Set(listed.flatMap((d) => d.languages)).size, label: "Languages spoken" },
+  ];
+  if (completed != null && completed >= 50) stats.push({ value: completed, label: "Consultations completed" });
+  return stats.filter((s) => s.value > 0);
+}
+
 export default async function HomePage() {
-  const [specialties, doctors, conditions] = await Promise.all([getSpecialties(), getFeaturedDoctors(), getConditions()]);
+  const [specialties, doctors, conditions, listed, completed] = await Promise.all([
+    getSpecialties(),
+    getFeaturedDoctors(),
+    getConditions(),
+    searchDoctors({}),
+    getCompletedConsultationCount(),
+  ]);
+  const fromPrices = lowestFeesBySpecialty(listed);
+  const specialtyName = new Map(specialties.map((s) => [s.slug, s.name]));
+  // Concerns that a doctor can take today come first; at most eight cards.
+  const concerns = [...conditions]
+    .filter((c) => c.specialty_slug)
+    .sort((a, b) => Number(fromPrices.has(b.specialty_slug!)) - Number(fromPrices.has(a.specialty_slug!)))
+    .slice(0, 8);
+  const stats = platformStats(listed, completed);
 
   return (
     <>
@@ -47,7 +82,49 @@ export default async function HomePage() {
           <li className="flex items-center gap-2"><Lock className="size-4 text-slate-400" aria-hidden /> Private, secure records</li>
           <li className="flex items-center gap-2"><FileText className="size-4 text-slate-400" aria-hidden /> Digital prescriptions</li>
         </ul>
+        {stats.length > 0 && (
+          <dl className="mx-auto mt-14 grid max-w-4xl grid-cols-2 gap-y-8 border-t border-slate-200 pt-10 sm:flex sm:justify-center sm:gap-x-14">
+            {stats.map((s) => (
+              <div key={s.label}>
+                <dt className="sr-only">{s.label}</dt>
+                <dd className="text-4xl font-semibold tracking-tight tabular-nums text-slate-900">{s.value.toLocaleString("en-US")}</dd>
+                <dd className="mt-1 text-sm text-slate-500">{s.label}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </section>
+
+      {/* What's bothering you? */}
+      {concerns.length > 0 && (
+        <section className="px-4 pb-24 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <SectionHeading title="What's bothering you?" description="Start with your concern. We'll show you verified doctors who treat it, with prices up front." />
+            <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {concerns.map((c) => {
+                const prices = fromPrices.get(c.specialty_slug!);
+                return (
+                  <Link
+                    key={c.slug}
+                    href={`/doctors?specialty=${c.specialty_slug}&sort=available`}
+                    className="group flex flex-col rounded-card bg-slate-50 p-6 transition hover:-translate-y-0.5 hover:bg-slate-100"
+                  >
+                    <span className="text-[17px] font-semibold text-slate-900">{c.name}</span>
+                    <span className="mt-1 text-sm text-slate-500">{specialtyName.get(c.specialty_slug!)}</span>
+                    <span className="mt-6 text-sm text-slate-700">
+                      {prices ? <>from <strong className="font-semibold text-slate-900">{prices.map((p) => formatPrice(p.amount, p.currency)).join(" · ")}</strong></> : "Doctors joining soon"}
+                    </span>
+                    <span className="mt-3 inline-flex items-center gap-0.5 text-sm font-medium text-brand-700">
+                      {prices ? "Consult now" : "See doctors"}
+                      <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Consultation types */}
       <section className="bg-slate-50 px-4 py-24 sm:px-6">
@@ -97,11 +174,11 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
-          {conditions.length > 0 && (
+          {conditions.length > concerns.length && (
             <div className="mt-12">
-              <p className="text-sm font-semibold text-slate-900">Common concerns</p>
+              <p className="text-sm font-semibold text-slate-900">More concerns</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {conditions.map((c) => (
+                {conditions.filter((c) => !concerns.includes(c)).map((c) => (
                   <Link
                     key={c.slug}
                     href={c.specialty_slug ? `/doctors?specialty=${c.specialty_slug}` : "/doctors"}
@@ -138,21 +215,24 @@ export default async function HomePage() {
       {/* How it works */}
       <section className="px-4 py-24 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <SectionHeading title="Four simple steps." description="From choosing a doctor to a prescription in your account." />
-          <ol className="mt-14 grid gap-5 md:grid-cols-4">
+          <SectionHeading title="Three simple steps." description="From your concern to a prescription in your account." />
+          <ol className="mt-14 grid gap-5 md:grid-cols-3">
             {[
-              { icon: Stethoscope, title: "Choose a doctor", body: "Filter by specialty, language, consultation type and fee." },
-              { icon: CalendarClock, title: "Pick a time", body: "Slots appear in your local time, with the zone clearly labelled." },
-              { icon: FileText, title: "Share your history", body: "Tell the doctor why you're visiting and upload any reports." },
-              { icon: Video, title: "Consult & get a prescription", body: "Join by chat, audio or video. Prescriptions appear in your account." },
-            ].map(({ icon: Icon, title, body }, i) => (
-              <li key={title} className="rounded-card bg-slate-50 p-7">
+              { icon: Stethoscope, title: "Choose a verified doctor", body: "Filter by specialty, language and fee, and see each doctor's next free time.", href: "/doctors?sort=available", cta: "Find a doctor" },
+              { icon: CalendarClock, title: "Consult in your time zone", body: "Chat, audio or video in your browser at the time you picked. No app or phone number needed.", href: "/how-it-works", cta: "How consultations work" },
+              { icon: FileText, title: "Get a digital prescription", body: "If your doctor prescribes, it appears in your account to view and print, with your history.", href: "/faq", cta: "Read the FAQs" },
+            ].map(({ icon: Icon, title, body, href, cta }, i) => (
+              <li key={title} className="flex flex-col rounded-card bg-slate-50 p-7">
                 <div className="flex items-center justify-between">
                   <span className="text-4xl font-semibold tracking-tight text-slate-300">{i + 1}</span>
                   <Icon className="size-6 text-brand-600" aria-hidden />
                 </div>
                 <p className="mt-6 text-[17px] font-semibold text-slate-900">{title}</p>
                 <p className="mt-2 text-sm leading-6 text-slate-500">{body}</p>
+                <Link href={href} className="group mt-5 inline-flex items-center gap-0.5 text-sm font-medium text-brand-700 hover:underline">
+                  {cta}
+                  <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                </Link>
               </li>
             ))}
           </ol>
@@ -185,7 +265,7 @@ export default async function HomePage() {
 
       {/* Doctor CTA */}
       <section className="px-4 py-24 sm:px-6">
-        <div className="mx-auto max-w-6xl rounded-[2rem] bg-slate-950 px-8 py-16 text-center text-white sm:py-20">
+        <div className="mx-auto max-w-6xl rounded-4xl bg-slate-950 px-8 py-16 text-center text-white sm:py-20">
           <h2 className="text-3xl font-semibold sm:text-5xl">Are you a registered doctor?</h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-slate-300">
             Consult patients worldwide, set your own hours and fees, and get paid reliably.

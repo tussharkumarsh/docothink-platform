@@ -25,6 +25,18 @@ export function formatMoney(minor: number, currency: string): string {
   }).format(minor / 10 ** units);
 }
 
+/** Headline prices ("from ₹500"): like formatMoney, but without minor units when they're zero. */
+export function formatPrice(minor: number, currency: string): string {
+  const units = MINOR_UNITS[currency as Currency] ?? 2;
+  const whole = minor % 10 ** units === 0;
+  return new Intl.NumberFormat(currency === "INR" ? "en-IN" : currency === "GBP" ? "en-GB" : "en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: whole ? 0 : units,
+    maximumFractionDigits: whole ? 0 : units,
+  }).format(minor / 10 ** units);
+}
+
 /** Parses a user-entered major amount ("1,000.50") into minor units without float drift. */
 export function toMinor(major: string, currency: string): number | null {
   const units = MINOR_UNITS[currency as Currency] ?? 2;

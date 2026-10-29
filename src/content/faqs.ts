@@ -74,6 +74,16 @@ export const FAQ_GROUPS: { title: string; items: Faq[] }[] = [
           "Contact support. If a genuine technical problem significantly affected your consultation, we'll arrange another session with the same doctor or a refund.",
       },
       {
+        question: "How soon can I see a doctor?",
+        answer:
+          "Every doctor's next free time is shown on their card, in your time zone. On Find a doctor, choose \"Earliest available\" or filter by \"Today\" to see doctors you can consult today.",
+      },
+      {
+        question: "What if the doctor doesn't join?",
+        answer:
+          "If you join and your doctor doesn't, the appointment is cancelled after the booked time ends and you're refunded in full automatically. You can then book another doctor.",
+      },
+      {
         question: "What if I miss my appointment?",
         answer:
           "If you don't join, the appointment is marked as a no-show and isn't refunded. If the doctor doesn't join, the appointment is cancelled and you receive a full refund.",
