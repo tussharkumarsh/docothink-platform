@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* Design tokens: clean white surfaces, trustworthy blue primary, teal accent, neutral slate text. */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1e40af;
+  --color-brand-900: #172554;
+
+  --color-accent-50: #f0fdfa;
+  --color-accent-100: #ccfbf1;
+  --color-accent-500: #0d9488;
+  --color-accent-600: #0f766e;
+
+  --radius-card: 0.875rem;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-slate-800);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Form controls share one look. */
+@utility input-base {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-slate-300);
+  background: #ffffff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--color-slate-900);
+  &:focus {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 0;
+    border-color: var(--color-brand-500);
+  }
+  &:disabled {
+    background: var(--color-slate-100);
+    color: var(--color-slate-500);
+  }
+  &[aria-invalid="true"] {
+    border-color: var(--color-red-500);
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
