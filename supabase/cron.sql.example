@@ -1,0 +1,27 @@
+-- Run once in the Supabase SQL editor AFTER deploying the app (not a migration: it contains
+-- your deployment URL and secret). Calls the app's background tick every minute, for free,
+-- without needing a paid Vercel plan.
+--
+-- 1. Database → Extensions: enable pg_cron and pg_net.
+-- 2. Store the secret in Vault rather than in the job text:
+select vault.create_secret('REPLACE_WITH_CRON_SECRET', 'docothink_cron_secret');
+
+-- 3. Schedule the job (replace the URL with your deployment's URL):
+select cron.schedule(
+  'docothink-tick',
+  '* * * * *',
+  $$
+  select net.http_post(
+    url := 'https://YOUR-APP.vercel.app/api/cron/tick',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'docothink_cron_secret')
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 25000
+  );
+  $$
+);
+
+-- Inspect runs:   select * from cron.job_run_details order by start_time desc limit 20;
+-- Remove the job: select cron.unschedule('docothink-tick');
