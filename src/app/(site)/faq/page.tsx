@@ -10,7 +10,7 @@ export default function FaqPage() {
       {FAQ_GROUPS.map((group) => (
         <section key={group.title} className="mt-10">
           <h2 className="text-lg font-semibold text-slate-900">{group.title}</h2>
-          <div className="mt-3 divide-y divide-slate-200 rounded-[--radius-card] border border-slate-200">
+          <div className="mt-3 divide-y divide-slate-200 rounded-card border border-slate-200">
             {group.items.map((faq) => (
               <details key={faq.question} className="px-5 py-4">
                 <summary className="cursor-pointer font-medium text-slate-900">{faq.question}</summary>

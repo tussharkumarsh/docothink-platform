@@ -51,7 +51,7 @@ export function PrescriptionEditor({ rx }: { rx: PrescriptionView }) {
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold text-slate-900">Medicines</legend>
         {items.map((item, index) => (
-          <div key={item.key} className="rounded-lg border border-slate-200 p-3">
+          <div key={item.key} className="rounded-2xl bg-slate-50 p-4">
             <div className="grid gap-2 sm:grid-cols-4 lg:grid-cols-7">
               {ITEM_FIELDS.map(([k, label, placeholder]) => (
                 <Field key={k} label={label} htmlFor={`items.${index}.${k}`}>

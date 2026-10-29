@@ -30,7 +30,7 @@ export function ConsultRoom(props: { appointmentId: string; selfId: string; role
     return (
       <div className="space-y-4">
         <Alert tone="warning">{state.error}</Alert>
-        <div className="h-[28rem] overflow-hidden rounded-[--radius-card] border border-slate-200 bg-white">
+        <div className="h-[28rem] overflow-hidden rounded-card border border-slate-200 bg-white">
           <ChatPanel appointmentId={props.appointmentId} selfId={props.selfId} timezone={props.timezone} canSend={false} />
         </div>
       </div>
@@ -41,11 +41,11 @@ export function ConsultRoom(props: { appointmentId: string; selfId: string; role
   return (
     <div className={hasCall ? "grid gap-4 lg:grid-cols-[1fr_22rem]" : ""}>
       {hasCall && (
-        <div className="h-[60vh] min-h-[22rem] overflow-hidden rounded-[--radius-card]">
+        <div className="h-[60vh] min-h-[22rem] overflow-hidden rounded-card">
           <CallPanel appointmentId={props.appointmentId} selfId={props.selfId} role={props.role} mode={props.mode as "audio" | "video"} iceServers={state.iceServers} />
         </div>
       )}
-      <div className={hasCall ? "h-[60vh] min-h-[22rem] overflow-hidden rounded-[--radius-card] border border-slate-200 bg-white" : "h-[70vh] overflow-hidden rounded-[--radius-card] border border-slate-200 bg-white"}>
+      <div className={hasCall ? "h-[60vh] min-h-[22rem] overflow-hidden rounded-card border border-slate-200 bg-white" : "h-[70vh] overflow-hidden rounded-card border border-slate-200 bg-white"}>
         <ChatPanel appointmentId={props.appointmentId} selfId={props.selfId} timezone={props.timezone} canSend />
       </div>
     </div>

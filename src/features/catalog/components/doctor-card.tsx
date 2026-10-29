@@ -19,7 +19,7 @@ export function DoctorCard({ doctor, nextAvailable }: { doctor: Doctor; nextAvai
   const from = fees.length ? Math.min(...fees.map((f) => f.fee)) : null;
   const primary = doctor.specialties[0];
   return (
-    <Card className="flex h-full flex-col p-5">
+    <Card className="flex h-full flex-col p-6 transition-shadow duration-200 hover:shadow-card-hover">
       <div className="flex gap-4">
         <Image
           src={photoUrl(doctor.photo_path)}
@@ -57,7 +57,7 @@ export function DoctorCard({ doctor, nextAvailable }: { doctor: Doctor; nextAvai
             {fees.map(({ mode }) => {
               const Icon = MODE_ICONS[mode];
               return (
-                <span key={mode} className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-0.5 text-xs capitalize">
+                <span key={mode} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs capitalize">
                   <Icon className="size-3.5" aria-hidden /> {mode}
                 </span>
               );

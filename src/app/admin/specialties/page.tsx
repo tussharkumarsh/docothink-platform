@@ -33,7 +33,7 @@ export default async function SpecialtiesAdminPage() {
       </Card>
       <div className="space-y-3">
         {data?.map((s) => (
-          <details key={s.id} className="rounded-[--radius-card] border border-slate-200 bg-white">
+          <details key={s.id} className="rounded-card border border-slate-200 bg-white">
             <summary className="flex cursor-pointer items-center justify-between px-5 py-3 text-sm">
               <span className="font-medium text-slate-900">{s.name}</span>
               {s.is_active ? <Badge tone="success">Active</Badge> : <Badge>Inactive</Badge>}

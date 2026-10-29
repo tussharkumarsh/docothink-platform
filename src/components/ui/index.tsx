@@ -13,23 +13,23 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "accent";
 type Size = "sm" | "md" | "lg";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-brand-600 text-white hover:bg-brand-700 shadow-sm",
-  accent: "bg-accent-600 text-white hover:bg-accent-500 shadow-sm",
-  secondary: "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50",
-  ghost: "text-slate-700 hover:bg-slate-100",
-  danger: "bg-red-600 text-white hover:bg-red-700 shadow-sm",
+  primary: "bg-brand-600 text-white hover:bg-brand-700",
+  accent: "bg-accent-600 text-white hover:bg-accent-500",
+  secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200/70",
+  ghost: "text-brand-700 hover:bg-brand-50",
+  danger: "bg-red-600 text-white hover:bg-red-700",
 };
 const SIZES: Record<Size, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
+  sm: "h-8 px-4 text-[13px]",
+  md: "h-10 px-5 text-sm",
+  lg: "h-12 px-7 text-[17px]",
 };
 
 export function buttonClasses(variant: Variant = "primary", size: Size = "md", extra?: string) {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors",
+    "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all duration-150 active:scale-[0.98]",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500",
-    "disabled:cursor-not-allowed disabled:opacity-60",
+    "disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
     VARIANTS[variant],
     SIZES[size],
     extra,
@@ -58,14 +58,14 @@ export function ButtonLink({
 // Surfaces
 // ---------------------------------------------------------------------------
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("rounded-[--radius-card] border border-slate-200 bg-white shadow-sm", className)} {...props} />;
+  return <div className={cn("rounded-card bg-white shadow-card ring-1 ring-black/4", className)} {...props} />;
 }
 
 export function CardHeader({ title, description, action }: { title: ReactNode; description?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+    <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
       <div>
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+        <h2 className="text-[17px] font-semibold text-slate-900">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
       </div>
       {action}
@@ -75,10 +75,10 @@ export function CardHeader({ title, description, action }: { title: ReactNode; d
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
-        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        <h1 className="text-3xl font-semibold text-slate-900 sm:text-[34px]">{title}</h1>
+        {description && <p className="mt-1.5 text-[15px] text-slate-500">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
@@ -88,8 +88,8 @@ export function PageHeader({ title, description, actions }: { title: string; des
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
     <Card className="p-5">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
+      <p className="text-[13px] font-medium text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-slate-900">{value}</p>
       {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
     </Card>
   );
@@ -118,10 +118,10 @@ export function Badge({ tone = "neutral", children, className }: { tone?: Tone; 
 }
 
 const ALERT_STYLES: Record<Exclude<Tone, "neutral" | "brand">, { box: string; icon: ReactNode }> = {
-  info: { box: "border-brand-200 bg-brand-50 text-brand-900", icon: <Info className="size-4 shrink-0" aria-hidden /> },
-  success: { box: "border-emerald-200 bg-emerald-50 text-emerald-900", icon: <CheckCircle2 className="size-4 shrink-0" aria-hidden /> },
-  warning: { box: "border-amber-200 bg-amber-50 text-amber-900", icon: <AlertTriangle className="size-4 shrink-0" aria-hidden /> },
-  danger: { box: "border-red-200 bg-red-50 text-red-900", icon: <XCircle className="size-4 shrink-0" aria-hidden /> },
+  info: { box: "bg-brand-50 text-brand-900 [&_svg]:text-brand-600", icon: <Info className="size-4 shrink-0" aria-hidden /> },
+  success: { box: "bg-emerald-50 text-emerald-900 [&_svg]:text-emerald-600", icon: <CheckCircle2 className="size-4 shrink-0" aria-hidden /> },
+  warning: { box: "bg-amber-50 text-amber-900 [&_svg]:text-amber-600", icon: <AlertTriangle className="size-4 shrink-0" aria-hidden /> },
+  danger: { box: "bg-red-50 text-red-900 [&_svg]:text-red-600", icon: <XCircle className="size-4 shrink-0" aria-hidden /> },
 };
 
 export function Alert({
@@ -137,7 +137,7 @@ export function Alert({
 }) {
   const style = ALERT_STYLES[tone];
   return (
-    <div role={tone === "danger" ? "alert" : "status"} className={cn("flex gap-3 rounded-lg border px-4 py-3 text-sm", style.box, className)}>
+    <div role={tone === "danger" ? "alert" : "status"} className={cn("flex gap-3 rounded-2xl px-4 py-3.5 text-sm", style.box, className)}>
       <span className="mt-0.5">{style.icon}</span>
       <div className="space-y-1">
         {title && <p className="font-medium">{title}</p>}
@@ -159,7 +159,7 @@ export function EmptyState({ icon, title, description, action }: { icon?: ReactN
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-md bg-slate-200/70", className)} aria-hidden />;
+  return <div className={cn("animate-pulse rounded-xl bg-slate-100", className)} aria-hidden />;
 }
 
 export function PageSkeleton() {
@@ -199,7 +199,7 @@ export function Field({
   const message = Array.isArray(error) ? error[0] : error;
   return (
     <div className={cn("space-y-1.5", className)}>
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-700">
+      <label htmlFor={htmlFor} className="block text-[13px] font-medium text-slate-700">
         {label}
         {required && <span className="ml-0.5 text-red-600" aria-hidden>*</span>}
       </label>
@@ -232,7 +232,7 @@ export function Select(props: ComponentProps<"select">) {
 export function Table({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm [&_td]:px-4 [&_td]:py-3 [&_th]:px-4 [&_th]:py-2.5 [&_th]:text-xs [&_th]:font-medium [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-slate-500 [&_thead]:bg-slate-50 [&_tbody_tr]:border-t [&_tbody_tr]:border-slate-100">
+      <table className="w-full text-left text-sm [&_td]:px-5 [&_td]:py-3.5 [&_th]:px-5 [&_th]:pb-2.5 [&_th]:pt-4 [&_th]:text-[13px] [&_th]:font-medium [&_th]:text-slate-500 [&_thead]:border-b [&_thead]:border-slate-200 [&_tbody_tr]:border-t [&_tbody_tr]:border-slate-100 [&_tbody_tr:first-child]:border-t-0 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-slate-50/70">
         {children}
       </table>
     </div>

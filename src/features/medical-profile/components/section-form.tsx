@@ -30,7 +30,7 @@ function Repeatable({ columns, initial, addLabel }: { columns: Col[]; initial: R
   return (
     <div className="space-y-3">
       {rows.map((row, index) => (
-        <fieldset key={row.key} className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))_auto] sm:items-end">
+        <fieldset key={row.key} className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))_auto] sm:items-end">
           <legend className="sr-only">Entry {index + 1}</legend>
           {columns.map((c) => {
             const id = `items.${index}.${c.name}`;

@@ -1,23 +1,43 @@
 @import "tailwindcss";
 
-/* Design tokens: clean white surfaces, trustworthy blue primary, teal accent, neutral slate text. */
+/*
+ * Design tokens, apple.com-inspired: the system font, near-black text on white and #f5f5f7 sections,
+ * a single blue for actions and links, hairline separators, generous radii.
+ * The slate and brand scales are redefined here so every page picks up the palette.
+ */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-inter), "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
 
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-500: #2563eb;
-  --color-brand-600: #1d4ed8;
-  --color-brand-700: #1e40af;
-  --color-brand-900: #172554;
+  --color-slate-50: #f5f5f7;
+  --color-slate-100: #ededf0;
+  --color-slate-200: #d2d2d7;
+  --color-slate-300: #c7c7cc;
+  --color-slate-400: #86868b;
+  --color-slate-500: #6e6e73;
+  --color-slate-600: #515154;
+  --color-slate-700: #424245;
+  --color-slate-800: #1d1d1f;
+  --color-slate-900: #1d1d1f;
+  --color-slate-950: #000000;
 
-  --color-accent-50: #f0fdfa;
-  --color-accent-100: #ccfbf1;
-  --color-accent-500: #0d9488;
-  --color-accent-600: #0f766e;
+  --color-brand-50: #eef5fe;
+  --color-brand-100: #d9e9fc;
+  --color-brand-200: #b6d5f8;
+  --color-brand-500: #0071e3;
+  --color-brand-600: #0071e3;
+  --color-brand-700: #0066cc;
+  --color-brand-900: #0b2a4f;
 
-  --radius-card: 0.875rem;
+  --color-accent-50: #eaf7ee;
+  --color-accent-100: #d1f0da;
+  --color-accent-500: #28a745;
+  --color-accent-600: #1f8a3a;
+
+  --radius-card: 1.125rem;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 24px rgb(0 0 0 / 0.05);
+  --shadow-card-hover: 0 2px 4px rgb(0 0 0 / 0.05), 0 12px 32px rgb(0 0 0 / 0.08);
 }
 
 :root {
@@ -28,22 +48,40 @@ body {
   background: #ffffff;
   color: var(--color-slate-800);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern";
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.022em;
+  text-wrap: balance;
 }
 
 /* Form controls share one look. */
 @utility input-base {
   width: 100%;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-slate-300);
-  background: #ffffff;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
+  min-height: 2.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-slate-200);
+  background: var(--color-slate-50);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
   color: var(--color-slate-900);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+  &::placeholder {
+    color: var(--color-slate-400);
+  }
   &:focus {
-    outline: 2px solid var(--color-brand-500);
-    outline-offset: 0;
+    outline: none;
+    background: #ffffff;
     border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 4px rgb(0 113 227 / 0.18);
   }
   &:disabled {
     background: var(--color-slate-100);
@@ -52,6 +90,13 @@ body {
   &[aria-invalid="true"] {
     border-color: var(--color-red-500);
   }
+}
+
+/* Frosted bars (site header, portal header, menus). */
+@utility glass {
+  background: rgb(255 255 255 / 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
 @media print {

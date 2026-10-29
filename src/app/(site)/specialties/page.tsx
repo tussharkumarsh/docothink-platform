@@ -19,7 +19,7 @@ export default async function SpecialtiesPage() {
           <Link
             key={s.id}
             href={`/doctors?specialty=${s.slug}`}
-            className="flex gap-4 rounded-[--radius-card] border border-slate-200 p-5 transition hover:border-brand-200 hover:bg-brand-50/40"
+            className="flex gap-4 rounded-card border border-slate-200 p-5 transition hover:border-brand-200 hover:bg-brand-50/40"
           >
             {s.icon_path ? <Image src={s.icon_path} alt="" width={48} height={48} className="shrink-0" /> : <Stethoscope className="size-12 text-brand-600" aria-hidden />}
             <span>

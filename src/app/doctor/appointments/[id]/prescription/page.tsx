@@ -55,7 +55,7 @@ export default async function PrescriptionPage({ params }: PageProps<"/doctor/ap
           </Card>
         )}
         {versions.filter((v) => v.status === "superseded").map((v) => (
-          <details key={v.id} className="rounded-[--radius-card] border border-slate-200 bg-white">
+          <details key={v.id} className="rounded-card border border-slate-200 bg-white">
             <summary className="cursor-pointer px-5 py-3 text-sm text-slate-600">Superseded version v{v.version}</summary>
             <PrescriptionDocument rx={v} timezone={viewer.timezone} />
           </details>
