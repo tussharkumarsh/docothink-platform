@@ -56,7 +56,7 @@ The public site renders without Supabase. Portals require it.
 1. Import the repository in Vercel (framework: Next.js). The Node.js runtime is required (Cache Components).
 2. Set environment variables from `.env.example` for Production (and Preview with **separate** dev keys):
    `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `CRON_SECRET`, and optionally Stripe, email and TURN.
-   Leave `PAYMENTS_DEV_SIMULATION` unset in production (it's ignored in production builds anyway).
+   `PAYMENTS_TEST_MODE=true` confirms bookings without charging anyone (for demos before Stripe is set up). Remove it before taking real bookings; it is ignored once Stripe is configured.
 3. Deploy. The first deployment works on the free `*.vercel.app` domain.
 4. **Background jobs**: `vercel.json` registers a daily fallback cron (the Hobby plan only allows daily). For minute-level jobs (payment-hold expiry, reminders, email retries, no-show handling), run `supabase/cron.sql.example` in the Supabase SQL editor (pg_cron + pg_net, free).
 

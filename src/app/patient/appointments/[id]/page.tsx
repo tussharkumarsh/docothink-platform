@@ -14,11 +14,10 @@ import {
   cancelAppointmentAction,
   payAppointmentAction,
   requestRescheduleAction,
-  simulatePaymentAction,
   upgradeAppointmentAction,
   withdrawRescheduleAction,
 } from "@/features/booking/actions";
-import { devSimulationEnabled, paymentsConfigured } from "@/lib/payments";
+import { paymentsConfigured, testPaymentsEnabled } from "@/lib/payments";
 import { MODE_LABELS, type ConsultationMode } from "@/lib/domain";
 import { formatMoney, patientRefundPercent } from "@/lib/money";
 import { formatDateTime } from "@/lib/time/format";
@@ -27,7 +26,7 @@ const PAYMENT_MESSAGES: Record<string, { tone: "info" | "success" | "warning"; t
   processing: { tone: "info", text: "Thanks! We're confirming your payment with the provider. This page updates once it's confirmed." },
   cancelled: { tone: "warning", text: "Payment was cancelled. Your slot is still held until the reservation expires." },
   unconfigured: { tone: "warning", text: "Online payment isn't configured for this deployment yet, so this booking can't be paid online." },
-  simulated: { tone: "success", text: "Development payment simulated. This was not a real payment." },
+  test: { tone: "success", text: "Booking confirmed. The fee was recorded as paid in test mode; no card was charged." },
 };
 
 export default async function PatientAppointmentPage({ params, searchParams }: PageProps<"/patient/appointments/[id]">) {
@@ -90,19 +89,15 @@ export default async function PatientAppointmentPage({ params, searchParams }: P
             <Card>
               <CardHeader title="Complete payment" description={appt.payment_expires_at ? `Your slot is held until ${formatDateTime(appt.payment_expires_at, tz)}.` : undefined} />
               <div className="flex flex-wrap gap-3 p-5">
-                {paymentsConfigured() ? (
+                {paymentsConfigured() || testPaymentsEnabled() ? (
                   <form action={payAppointmentAction}>
                     <input type="hidden" name="appointment_id" value={appt.id} />
-                    <Button type="submit">Pay {formatMoney(appt.fee_amount - appt.amount_paid, appt.currency)}</Button>
+                    <Button type="submit">
+                      {testPaymentsEnabled() ? "Confirm booking" : "Pay"} {formatMoney(appt.fee_amount - appt.amount_paid, appt.currency)}
+                    </Button>
                   </form>
                 ) : (
                   <Alert tone="warning">Online payment is not configured, so this booking cannot be confirmed yet.</Alert>
-                )}
-                {devSimulationEnabled() && (
-                  <form action={simulatePaymentAction}>
-                    <input type="hidden" name="appointment_id" value={appt.id} />
-                    <Button type="submit" variant="secondary">Simulate payment (development only)</Button>
-                  </form>
                 )}
               </div>
             </Card>
@@ -144,11 +139,10 @@ export default async function PatientAppointmentPage({ params, searchParams }: P
               <CardHeader title="Upgrade consultation type" description="Pay only the difference, at the prices that applied when you booked." />
               <div className="flex flex-wrap gap-3 p-5">
                 {upgrades.map(([mode, fee]) => (
-                  <form key={mode} action={paymentsConfigured() ? upgradeAppointmentAction : devSimulationEnabled() ? simulatePaymentAction : undefined}>
+                  <form key={mode} action={paymentsConfigured() || testPaymentsEnabled() ? upgradeAppointmentAction : undefined}>
                     <input type="hidden" name="appointment_id" value={appt.id} />
                     <input type="hidden" name="mode" value={mode} />
-                    <input type="hidden" name="purpose" value="upgrade" />
-                    <Button type="submit" variant="secondary" disabled={!paymentsConfigured() && !devSimulationEnabled()}>
+                    <Button type="submit" variant="secondary" disabled={!paymentsConfigured() && !testPaymentsEnabled()}>
                       {MODE_LABELS[mode]} (+{formatMoney(fee - appt.fee_amount, appt.currency)})
                     </Button>
                   </form>

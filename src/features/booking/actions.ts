@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth/viewer";
 import { friendlyError, type ActionResult } from "@/lib/errors";
 import { publicEnv } from "@/lib/env";
-import { devSimulationEnabled, getPaymentProvider, paymentsConfigured } from "@/lib/payments";
+import { getPaymentProvider, paymentsConfigured, testPaymentsEnabled } from "@/lib/payments";
 import { processPendingRefunds } from "@/features/payments/server";
 import { isValidTimezone } from "@/lib/time/format";
 import { CONSULTATION_MODES, MODE_LABELS, type ConsultationMode } from "@/lib/domain";
@@ -51,6 +51,7 @@ export async function bookAppointmentAction(_: ActionResult, formData: FormData)
 /** Creates the payment record (amount computed in SQL) and redirects to the provider. */
 async function startCheckout(appointmentId: string, purpose: "booking" | "upgrade", upgradeTo?: ConsultationMode): Promise<never> {
   const viewer = await requireRole("patient");
+  if (testPaymentsEnabled()) return recordTestPayment(appointmentId, purpose, upgradeTo);
   const detailUrl = `/patient/appointments/${appointmentId}`;
   const provider = getPaymentProvider();
   if (!provider || !paymentsConfigured()) redirect(`${detailUrl}?payment=unconfigured`);
@@ -97,33 +98,30 @@ export async function upgradeAppointmentAction(formData: FormData) {
 }
 
 /**
- * DEVELOPMENT ONLY. Confirms a pending booking without a payment provider so the rest of the
- * workflow can be exercised locally. Disabled unless PAYMENTS_DEV_SIMULATION=true and never in
- * production builds. Payment rows are marked provider "manual" so they are distinguishable.
+ * Test payment mode: records the database-computed amount as paid without charging anyone, through the
+ * same create_payment_record / confirm_payment path as the Stripe webhook. Rows use provider "manual".
  */
-export async function simulatePaymentAction(formData: FormData) {
-  if (!devSimulationEnabled()) throw new Error("Payment simulation is disabled");
-  await requireRole("patient");
-  const id = z.string().uuid().parse(formData.get("appointment_id"));
-  const purpose = formData.get("purpose") === "upgrade" ? "upgrade" : "booking";
-  const upgradeTo = purpose === "upgrade" ? z.enum(CONSULTATION_MODES).parse(formData.get("mode")) : null;
+async function recordTestPayment(appointmentId: string, purpose: "booking" | "upgrade", upgradeTo?: ConsultationMode): Promise<never> {
+  const detailUrl = `/patient/appointments/${appointmentId}`;
   const supabase = await createClient();
   const { data: payment, error } = await supabase.rpc("create_payment_record", {
-    p_appointment: id,
+    p_appointment: appointmentId,
     p_purpose: purpose,
-    p_upgrade_to: upgradeTo,
+    p_upgrade_to: upgradeTo ?? null,
     p_provider: "manual",
   });
-  if (error || !payment) redirect(`/patient/appointments/${id}?payment_error=${encodeURIComponent(friendlyError(error))}`);
+  if (error || !payment) redirect(`${detailUrl}?payment_error=${encodeURIComponent(friendlyError(error))}`);
   const p = payment as { id: string; amount: number; currency: string };
-  await createAdminClient().rpc("confirm_payment", {
+  const { data: outcome, error: confirmError } = await createAdminClient().rpc("confirm_payment", {
     p_payment: p.id,
-    p_provider_payment_id: `dev_sim_${p.id}`,
+    p_provider_payment_id: `test_${p.id}`,
     p_amount: p.amount,
     p_currency: p.currency,
   });
-  revalidatePath(`/patient/appointments/${id}`);
-  redirect(`/patient/appointments/${id}?payment=simulated`);
+  if (confirmError) redirect(`${detailUrl}?payment_error=${encodeURIComponent(friendlyError(confirmError))}`);
+  revalidatePath("/", "layout");
+  if (outcome === "confirmed" || outcome === "upgraded") redirect(`${detailUrl}?payment=test`);
+  redirect(`${detailUrl}?payment_error=${encodeURIComponent("This booking could not be completed. Any recorded amount has been refunded.")}`);
 }
 
 export async function cancelAppointmentAction(_: ActionResult, formData: FormData): Promise<ActionResult> {

@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getPaymentProvider } from "@/lib/payments";
+import { getPaymentProvider, testPaymentsEnabled } from "@/lib/payments";
 
 /**
  * Sends pending refund rows to the provider. Idempotent: the provider call uses the refund id as
@@ -9,7 +9,8 @@ import { getPaymentProvider } from "@/lib/payments";
  */
 export async function processPendingRefunds(limit = 20): Promise<{ processed: number; skipped: string | null }> {
   const provider = getPaymentProvider();
-  if (!provider) return { processed: 0, skipped: "payment provider not configured" };
+  const testMode = testPaymentsEnabled();
+  if (!provider && !testMode) return { processed: 0, skipped: "payment provider not configured" };
   const db = createAdminClient();
   const { data: refunds } = await db
     .from("refunds")
@@ -22,8 +23,14 @@ export async function processPendingRefunds(limit = 20): Promise<{ processed: nu
   let processed = 0;
   for (const r of refunds ?? []) {
     const payment = r.payment_records as unknown as { provider: string; provider_payment_id: string | null } | null;
-    if (!payment?.provider_payment_id || payment.provider !== "stripe") {
-      // e.g. dev-simulated payments: nothing to refund at a provider; an admin must settle manually.
+    if (testMode && payment?.provider === "manual") {
+      // Test payments moved no money, so the refund completes immediately and the ledger stays consistent.
+      await db.rpc("complete_refund", { p_refund: r.id, p_success: true, p_provider_refund_id: `test_${r.id}`, p_failure: null });
+      processed++;
+      continue;
+    }
+    if (!provider || !payment?.provider_payment_id || payment.provider !== "stripe") {
+      // e.g. manual payments outside test mode: nothing to refund at a provider; an admin must settle manually.
       continue;
     }
     try {

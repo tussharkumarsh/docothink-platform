@@ -86,7 +86,11 @@ export function paymentsConfigured(): boolean {
   return Boolean(env.stripeSecretKey && env.stripeWebhookSecret);
 }
 
-/** Explicit, development-only payment simulation. Refuses to run in production builds. */
-export function devSimulationEnabled(): boolean {
-  return process.env.NODE_ENV !== "production" && process.env.PAYMENTS_DEV_SIMULATION === "true";
+/**
+ * Test payment mode (PAYMENTS_TEST_MODE=true): no provider is called and every booking or upgrade is
+ * recorded as paid straight away (provider "manual"), so fees, commission and doctor earnings are
+ * calculated exactly as for real payments. Switches off automatically once Stripe is configured.
+ */
+export function testPaymentsEnabled(): boolean {
+  return !paymentsConfigured() && process.env.PAYMENTS_TEST_MODE === "true";
 }

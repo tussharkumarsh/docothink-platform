@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/auth/viewer";
 import { getPlatformSettings } from "@/features/appointments/settings";
 import { saveSettingAction } from "@/features/admin/actions";
 import { supportedTimezones } from "@/lib/time/format";
-import { paymentsConfigured } from "@/lib/payments";
+import { paymentsConfigured, testPaymentsEnabled } from "@/lib/payments";
 import { serverEnv } from "@/lib/env";
 
 function NumberField({ name, label, value, hint }: { name: string; label: string; value: number; hint?: string }) {
@@ -80,7 +80,7 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader title="Integrations" description="Configured through environment variables, not stored in the database." />
           <dl className="space-y-2 p-5 text-sm">
-            <div className="flex justify-between"><dt>Payments (Stripe)</dt><dd>{paymentsConfigured() ? "Configured" : "Not configured"}</dd></div>
+            <div className="flex justify-between"><dt>Payments</dt><dd>{paymentsConfigured() ? "Stripe" : testPaymentsEnabled() ? "Test mode (no real charges)" : "Not configured"}</dd></div>
             <div className="flex justify-between"><dt>Email provider</dt><dd>{env.emailProvider === "resend" && env.resendApiKey ? "Resend" : "Console (dev, not delivered)"}</dd></div>
             <div className="flex justify-between"><dt>TURN relay</dt><dd>{env.turnUrls.length ? "Configured" : "Not configured (STUN only)"}</dd></div>
             <div className="flex justify-between"><dt>Cron secret</dt><dd>{env.cronSecret ? "Set" : "Missing"}</dd></div>

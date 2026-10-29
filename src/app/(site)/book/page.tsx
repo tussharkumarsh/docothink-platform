@@ -9,7 +9,7 @@ import { getViewer } from "@/lib/auth/viewer";
 import { CONSULTATION_MODES, MODE_LABELS, type ConsultationMode } from "@/lib/domain";
 import { formatMoney } from "@/lib/money";
 import { formatDateTime, isValidTimezone, supportedTimezones } from "@/lib/time/format";
-import { paymentsConfigured, devSimulationEnabled } from "@/lib/payments";
+import { paymentsConfigured, testPaymentsEnabled } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Confirm your booking" };
 
@@ -59,13 +59,23 @@ async function Booking({ searchParams }: { searchParams: PageProps<"/book">["sea
             <Alert tone="info">You&apos;re signed in as a {viewer.role}. Please use a patient account to book consultations.</Alert>
           ) : (
             <>
-              {!paymentsConfigured() && (
+              {testPaymentsEnabled() ? (
+                <Alert tone="info" className="mb-4" title="Test payment mode">
+                  The fee of {formatMoney(fee, doctor.currency)} is recorded as paid as soon as you confirm. No card is needed.
+                </Alert>
+              ) : !paymentsConfigured() && (
                 <Alert tone="warning" className="mb-4" title="Online payment is not configured">
                   You can reserve the slot, but it will expire unless payment is completed.
-                  {devSimulationEnabled() ? " (Development payment simulation is enabled.)" : ""}
                 </Alert>
               )}
-              <BookingForm doctorId={doctor.user_id} start={start} mode={mode} timezone={tz} timezones={supportedTimezones()} paymentsReady={paymentsConfigured()} />
+              <BookingForm
+                doctorId={doctor.user_id}
+                start={start}
+                mode={mode}
+                timezone={tz}
+                timezones={supportedTimezones()}
+                paymentMode={paymentsConfigured() ? "provider" : testPaymentsEnabled() ? "test" : "none"}
+              />
             </>
           )}
         </div>

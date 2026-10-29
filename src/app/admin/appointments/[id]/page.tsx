@@ -55,7 +55,7 @@ export default async function AdminAppointmentPage({ params }: PageProps<"/admin
               <Table>
                 <thead><tr><th>Payment</th><th>Status</th><th>Provider ref</th><th className="text-right">Amount</th></tr></thead>
                 <tbody>
-                  {payments.map((p) => <tr key={p.id}><td className="capitalize">{p.purpose} {p.provider === "manual" && <Badge tone="warning">dev</Badge>}</td><td>{p.status}</td><td className="font-mono text-xs">{p.provider_payment_id ?? "—"}</td><td className="text-right">{formatMoney(p.amount, p.currency)}</td></tr>)}
+                  {payments.map((p) => <tr key={p.id}><td className="capitalize">{p.purpose} {p.provider === "manual" && <Badge tone="warning">test</Badge>}</td><td>{p.status}</td><td className="font-mono text-xs">{p.provider_payment_id ?? "—"}</td><td className="text-right">{formatMoney(p.amount, p.currency)}</td></tr>)}
                   {refunds?.map((r) => <tr key={r.id}><td>Refund · {r.reason}</td><td>{r.status}</td><td /><td className="text-right text-red-700">−{formatMoney(r.amount, r.currency)}</td></tr>)}
                 </tbody>
               </Table>

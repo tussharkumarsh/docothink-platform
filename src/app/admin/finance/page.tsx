@@ -127,7 +127,7 @@ export default async function FinancePage() {
           <CardHeader title="Recent payments" />
           <Table>
             <thead><tr><th>Date</th><th>For</th><th>Status</th><th className="text-right">Amount</th></tr></thead>
-            <tbody>{payments?.map((p) => <tr key={p.id}><td>{formatDateTime(p.succeeded_at ?? p.created_at, tz, { withZone: false })}</td><td><Link href={`/admin/appointments/${p.appointment_id}`} className="capitalize text-brand-700 hover:underline">{p.purpose}</Link>{p.provider === "manual" && <Badge tone="warning" className="ml-1">dev</Badge>}</td><td>{p.status}</td><td className="text-right tabular-nums">{formatMoney(p.amount, p.currency)}</td></tr>)}</tbody>
+            <tbody>{payments?.map((p) => <tr key={p.id}><td>{formatDateTime(p.succeeded_at ?? p.created_at, tz, { withZone: false })}</td><td><Link href={`/admin/appointments/${p.appointment_id}`} className="capitalize text-brand-700 hover:underline">{p.purpose}</Link>{p.provider === "manual" && <Badge tone="warning" className="ml-1">test</Badge>}</td><td>{p.status}</td><td className="text-right tabular-nums">{formatMoney(p.amount, p.currency)}</td></tr>)}</tbody>
           </Table>
         </Card>
         <Card>

@@ -12,7 +12,7 @@ export function BookingForm(props: {
   mode: string;
   timezone: string;
   timezones: string[];
-  paymentsReady: boolean;
+  paymentMode: "provider" | "test" | "none";
 }) {
   const [state, action] = useActionState<ActionResult, FormData>(bookAppointmentAction, idle);
   return (
@@ -39,10 +39,10 @@ export function BookingForm(props: {
         <span>I understand this is not an emergency service, and I agree to the cancellation policy.</span>
       </label>
       {fieldError(state, "consent") && <p className="text-xs text-red-600">{fieldError(state, "consent")}</p>}
-      <SubmitButton className="w-full" size="lg" pendingText="Reserving your slot…">
-        {props.paymentsReady ? "Reserve and continue to payment" : "Reserve slot"}
+      <SubmitButton className="w-full" size="lg" pendingText={props.paymentMode === "test" ? "Confirming your booking…" : "Reserving your slot…"}>
+        {props.paymentMode === "provider" ? "Reserve and continue to payment" : props.paymentMode === "test" ? "Confirm booking" : "Reserve slot"}
       </SubmitButton>
-      <p className="text-xs text-slate-500">Your slot is held for 15 minutes while you complete payment.</p>
+      {props.paymentMode !== "test" && <p className="text-xs text-slate-500">Your slot is held for 15 minutes while you complete payment.</p>}
     </form>
   );
 }

@@ -27,7 +27,7 @@ export default async function PatientPaymentsPage() {
                 <tr key={p.id}>
                   <td>{formatDateTime(p.succeeded_at ?? p.created_at, viewer.timezone, { withZone: false })}</td>
                   <td><Link href={`/patient/appointments/${p.appointment_id}`} className="text-brand-700 hover:underline">{(p.appointments as unknown as { reference: string } | null)?.reference}</Link></td>
-                  <td className="capitalize">{p.purpose}{p.provider === "manual" && <Badge tone="warning" className="ml-1">dev simulation</Badge>}</td>
+                  <td className="capitalize">{p.purpose}{p.provider === "manual" && <Badge tone="warning" className="ml-1">test payment</Badge>}</td>
                   <td><Badge tone={p.status === "succeeded" ? "success" : p.status === "failed" ? "danger" : "neutral"}>{p.status.replace("_", " ")}</Badge></td>
                   <td className="text-right tabular-nums">{formatMoney(p.amount, p.currency)}</td>
                   <td className="text-right tabular-nums">{p.amount_refunded ? formatMoney(p.amount_refunded, p.currency) : "—"}</td>
