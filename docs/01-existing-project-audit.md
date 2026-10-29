@@ -6,6 +6,7 @@ Audited: `docothink-landing` (untracked, no commits) and `docothink-admin` (2 co
 
 Both projects are **Angular front-ends with no backend in either repo**. They call a REST API at `https://api.docothink.com/v1/` that is not included. As of the audit the API **fails its TLS handshake** (curl exit 60), so it is presumed offline. No database schema, migrations or dump exist. The real content of value is UI copy, the specialty and condition lists, the doctor profile shape, and the patient medical questionnaire.
 
+ 
 | | Landing | Admin |
 |---|---|---|
 | Framework | Angular 15, Bootstrap 5 alpha, jQuery, Owl Carousel, AOS, Angular Material | Angular 12 (EOL), "Minia" admin theme, ng-bootstrap, Material, Firebase 8, PeerJS, socket.io |
