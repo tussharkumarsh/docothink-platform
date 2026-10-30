@@ -4,7 +4,10 @@ import type { DoctorCard } from "./queries";
 /** Pure helpers for doctor discovery (home page prices, Find a doctor filters and sorting). */
 
 export type ListedDoctor = {
-  doctor: Pick<DoctorCard, "slug" | "currency" | "fee_chat" | "fee_audio" | "fee_video" | "years_experience"> & {
+  doctor: Pick<
+    DoctorCard,
+    "slug" | "currency" | "fee_chat" | "fee_audio" | "fee_video" | "years_experience" | "rating_avg" | "rating_count"
+  > & {
     specialties: { slug: string }[];
   };
   /** Next bookable slot start (ISO), or null when none is open within the doctor's horizon. */
@@ -12,6 +15,12 @@ export type ListedDoctor = {
 };
 
 export type FromPrice = { currency: string; amount: number };
+
+/** "4.8 (123)"; null for doctors without ratings, so no "0.0" ever shows. */
+export function formatRating(avg: number | null, count: number): string | null {
+  if (!count || avg == null) return null;
+  return `${Number(avg).toFixed(1)} (${count})`;
+}
 
 function lowestFee(d: ListedDoctor["doctor"]): number | null {
   const fees = [d.fee_chat, d.fee_audio, d.fee_video].filter((f): f is number => f != null);
@@ -73,6 +82,7 @@ export function availabilityMatches(slotIso: string | null, filter: string, time
 
 export const SORT_OPTIONS = [
   { value: "available", label: "Earliest available" },
+  { value: "rated", label: "Highest rated" },
   { value: "experience", label: "Most experienced" },
   { value: "fee_asc", label: "Fee: low to high" },
   { value: "fee_desc", label: "Fee: high to low" },
@@ -90,6 +100,10 @@ export function sortDoctors<T extends ListedDoctor>(items: T[], sort: DoctorSort
     a == null ? (b == null ? 0 : 1) : b == null ? -1 : cmp(a, b);
   return [...items].sort((a, b) => {
     switch (sort) {
+      case "rated": {
+        const avg = (d: ListedDoctor["doctor"]) => (d.rating_count > 0 && d.rating_avg != null ? Number(d.rating_avg) : null);
+        return last(avg(a.doctor), avg(b.doctor), (x, y) => y - x) || b.doctor.rating_count - a.doctor.rating_count;
+      }
       case "experience":
         return last(a.doctor.years_experience, b.doctor.years_experience, (x, y) => y - x);
       case "fee_asc":

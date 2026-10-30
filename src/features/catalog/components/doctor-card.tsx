@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BadgeCheck, Languages, MessageSquare, Phone, Video } from "lucide-react";
+import { BadgeCheck, Languages, MessageSquare, Phone, Star, Video } from "lucide-react";
 import { Badge, ButtonLink, Card } from "@/components/ui";
+import { InitialsAvatar } from "@/components/ui/avatar";
+import { formatRating } from "../discovery";
 import { formatMoney } from "@/lib/money";
 import { photoUrl, type DoctorCard as Doctor } from "../queries";
 import type { ConsultationMode } from "@/lib/domain";
@@ -18,27 +20,39 @@ export function DoctorCard({ doctor, nextAvailable }: { doctor: Doctor; nextAvai
   const fees = feesOf(doctor);
   const from = fees.length ? Math.min(...fees.map((f) => f.fee)) : null;
   const primary = doctor.specialties[0];
+  const rating = formatRating(doctor.rating_avg, doctor.rating_count);
   return (
     <Card className="flex h-full flex-col p-6 transition-shadow duration-200 hover:shadow-card-hover">
       <div className="flex gap-4">
-        <Image
-          src={photoUrl(doctor.photo_path)}
-          alt=""
-          width={72}
-          height={72}
-          className="size-18 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
-        />
+        {doctor.photo_path ? (
+          <Image
+            src={photoUrl(doctor.photo_path)}
+            alt=""
+            width={72}
+            height={72}
+            className="size-18 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+          />
+        ) : (
+          <InitialsAvatar name={doctor.display_name} size={72} />
+        )}
         <div className="min-w-0">
           <Link href={`/doctors/${doctor.slug}`} className="font-semibold text-slate-900 hover:text-brand-700">
             {doctor.title} {doctor.display_name}
           </Link>
           <p className="text-sm text-brand-700">{primary?.name ?? doctor.headline}</p>
+          {rating && (
+            <p className="mt-0.5 flex items-center gap-1 text-sm text-slate-700">
+              <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden />
+              <span className="sr-only">Rated</span> {rating}
+            </p>
+          )}
           <p className="mt-0.5 truncate text-xs text-slate-500">{doctor.qualifications}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <Badge tone="success">
               <BadgeCheck className="size-3" aria-hidden /> Verified
             </Badge>
             {doctor.years_experience != null && <Badge>{doctor.years_experience} yrs experience</Badge>}
+            {doctor.is_demo && <Badge tone="warning">Demo</Badge>}
           </div>
         </div>
       </div>

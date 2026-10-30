@@ -31,6 +31,9 @@ export type DoctorCard = {
   fee_video: number | null;
   photo_path: string | null;
   is_accepting_bookings: boolean;
+  rating_avg: number | null;
+  rating_count: number;
+  is_demo: boolean;
   specialties: { slug: string; name: string; is_primary: boolean }[];
 };
 
@@ -47,7 +50,7 @@ export type DoctorDetail = DoctorCard & {
 };
 
 const CARD_COLUMNS =
-  "user_id, slug, title, display_name, headline, qualifications, years_experience, languages, country, timezone, currency, fee_chat, fee_audio, fee_video, photo_path, is_accepting_bookings, doctor_specialties(is_primary, specialties(slug, name))";
+  "user_id, slug, title, display_name, headline, qualifications, years_experience, languages, country, timezone, currency, fee_chat, fee_audio, fee_video, photo_path, is_accepting_bookings, rating_avg, rating_count, is_demo, doctor_specialties(is_primary, specialties(slug, name))";
 
 type RawSpecialtyLink = { is_primary: boolean; specialties: { slug: string; name: string } | null };
 

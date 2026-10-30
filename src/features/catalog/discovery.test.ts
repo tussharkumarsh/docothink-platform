@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availabilityMatches, lowestFeesBySpecialty, nextAvailableDay, sortDoctors, type ListedDoctor } from "./discovery";
+import { availabilityMatches, formatRating, lowestFeesBySpecialty, nextAvailableDay, sortDoctors, type ListedDoctor } from "./discovery";
 import { formatPrice } from "@/lib/money";
 
 const doctor = (overrides: Partial<ListedDoctor["doctor"]> & { slug: string }): ListedDoctor["doctor"] => ({
@@ -8,8 +8,19 @@ const doctor = (overrides: Partial<ListedDoctor["doctor"]> & { slug: string }): 
   fee_audio: null,
   fee_video: null,
   years_experience: null,
+  rating_avg: null,
+  rating_count: 0,
   specialties: [],
   ...overrides,
+});
+
+describe("formatRating", () => {
+  it("shows one decimal and the count, and nothing for unrated doctors", () => {
+    expect(formatRating(4.84, 123)).toBe("4.8 (123)");
+    expect(formatRating(5, 1)).toBe("5.0 (1)");
+    expect(formatRating(null, 0)).toBeNull();
+    expect(formatRating(4.5, 0)).toBeNull();
+  });
 });
 
 describe("lowestFeesBySpecialty", () => {
@@ -80,6 +91,16 @@ describe("sortDoctors", () => {
 
   it("sorts by experience with unknown experience last", () => {
     expect(order("experience")).toEqual(["none", "late", "soon", "gbp"]);
+  });
+
+  it("sorts by rating, then review count, with unrated doctors last", () => {
+    const rated: ListedDoctor[] = [
+      { doctor: doctor({ slug: "unrated" }), next: null },
+      { doctor: doctor({ slug: "a42", rating_avg: 4.2, rating_count: 50 }), next: null },
+      { doctor: doctor({ slug: "a49few", rating_avg: 4.9, rating_count: 3 }), next: null },
+      { doctor: doctor({ slug: "a49many", rating_avg: 4.9, rating_count: 10 }), next: null },
+    ];
+    expect(sortDoctors(rated, "rated").map((d) => d.doctor.slug)).toEqual(["a49many", "a49few", "a42", "unrated"]);
   });
 
   it("compares fees only within a currency, grouping currencies", () => {
