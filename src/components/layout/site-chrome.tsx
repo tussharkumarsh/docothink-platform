@@ -12,13 +12,13 @@ const NAV = [
   { href: "/for-doctors", label: "For doctors" },
 ];
 
-export function Logo() {
+export function Logo({ compact }: { compact?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2 text-[17px] font-semibold tracking-tight text-slate-900">
-      <span className="flex size-7 items-center justify-center rounded-[9px] bg-linear-to-b from-brand-500 to-brand-700 text-white shadow-sm">
+    <Link href="/" className="flex items-center gap-2 text-[17px] font-semibold tracking-tight text-slate-900" aria-label={compact ? "Docothink home" : undefined}>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-[9px] bg-linear-to-b from-brand-500 to-brand-700 text-white shadow-sm">
         <Stethoscope className="size-3.5" aria-hidden />
       </span>
-      Docothink
+      {!compact && "Docothink"}
     </Link>
   );
 }

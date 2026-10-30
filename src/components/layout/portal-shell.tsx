@@ -2,7 +2,10 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { Bell, LogOut, Menu } from "lucide-react";
 import { Logo } from "./site-chrome";
+import { cookies } from "next/headers";
 import { NavLinks, type NavItem } from "./portal-nav";
+import { PortalSidebar } from "./portal-sidebar";
+import { SIDEBAR_COOKIE } from "./sidebar-cookie";
 import { DemoNotice } from "./demo-notice";
 import { getViewer } from "@/lib/auth/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -38,16 +41,18 @@ async function UserMenu({ notificationsHref }: { notificationsHref: string }) {
   );
 }
 
+/** Reads the remembered collapsed/expanded choice; streamed behind Suspense because cookies are request data. */
+async function Sidebar({ label, nav }: { label: string; nav: NavItem[] }) {
+  const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "collapsed";
+  return <PortalSidebar label={label} nav={nav} logo={<Logo />} logoCompact={<Logo compact />} initialCollapsed={collapsed} />;
+}
+
 export function PortalShell({ label, nav, notificationsHref, children }: { label: string; nav: NavItem[]; notificationsHref: string; children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-black/6 bg-white/70 lg:block no-print">
-        <div className="flex h-14 items-center px-5"><Logo /></div>
-        <p className="px-6 pb-2 pt-4 text-xs font-semibold text-slate-400">{label}</p>
-        <nav aria-label={`${label} navigation`} className="px-3">
-          <NavLinks items={nav} />
-        </nav>
-      </aside>
+      <Suspense fallback={<PortalSidebar label={label} nav={nav} logo={<Logo />} logoCompact={<Logo compact />} initialCollapsed={false} />}>
+        <Sidebar label={label} nav={nav} />
+      </Suspense>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="glass sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-black/6 px-4 sm:px-6 no-print">
           <details className="relative lg:hidden">
@@ -68,7 +73,7 @@ export function PortalShell({ label, nav, notificationsHref, children }: { label
         <Suspense fallback={null}>
           <DemoNotice />
         </Suspense>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-8">{children}</main>
+        <main className="w-full min-w-0 flex-1 px-4 py-6 sm:px-6">{children}</main>
       </div>
     </div>
   );
