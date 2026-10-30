@@ -7,26 +7,33 @@ import { formatMoney } from "@/lib/money";
 import type { AppointmentRow } from "../queries";
 import { StatusBadge } from "./status-badge";
 
-/** One table for all portals; `perspective` decides which party and which zone to show. */
+/**
+ * One table for all portals; `perspective` decides which party and which zone to show. `hide` drops a
+ * party column that the surrounding page already identifies (e.g. the doctor on an admin doctor page).
+ */
 export function AppointmentTable({
   rows,
   perspective,
   timezone,
   hrefBase,
+  hide = [],
 }: {
   rows: AppointmentRow[];
   perspective: "patient" | "doctor" | "admin";
   timezone: string;
   hrefBase: string;
+  hide?: ("patient" | "doctor")[];
 }) {
+  const showPatient = perspective !== "patient" && !hide.includes("patient");
+  const showDoctor = perspective !== "doctor" && !hide.includes("doctor");
   if (rows.length === 0) return <EmptyState icon={<CalendarDays className="size-6" aria-hidden />} title="No appointments" />;
   return (
     <Table>
       <thead>
         <tr>
           <th>When ({timezone})</th>
-          {perspective !== "patient" && <th>Patient</th>}
-          {perspective !== "doctor" && <th>Doctor</th>}
+          {showPatient && <th>Patient</th>}
+          {showDoctor && <th>Doctor</th>}
           <th>Type</th>
           <th>Status</th>
           {perspective === "admin" && <th className="text-right">Fee</th>}
@@ -42,8 +49,8 @@ export function AppointmentTable({
                 <span className="block text-xs text-slate-500">Dr: {a.doctor_timezone} · Pt: {a.patient_timezone}</span>
               )}
             </td>
-            {perspective !== "patient" && <td>{a.patient_name ?? <span className="text-slate-400">Awaiting payment</span>}</td>}
-            {perspective !== "doctor" && <td>{a.doctor ? `${a.doctor.title} ${a.doctor.display_name}` : "—"}</td>}
+            {showPatient && <td>{a.patient_name ?? <span className="text-slate-400">Awaiting payment</span>}</td>}
+            {showDoctor && <td>{a.doctor ? `${a.doctor.title} ${a.doctor.display_name}` : "—"}</td>}
             <td>{MODE_LABELS[a.mode]}</td>
             <td><StatusBadge status={a.status} changeRequested={!!a.pending_change} rescheduled={a.reschedule_count > 0} /></td>
             {perspective === "admin" && <td className="text-right tabular-nums">{formatMoney(a.fee_amount, a.currency)}</td>}

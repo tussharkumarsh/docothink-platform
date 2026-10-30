@@ -41,7 +41,7 @@ export default async function AdminPatientPage({ params, searchParams }: PagePro
         <div className="space-y-6">
           <Card>
             <CardHeader title="Appointments" />
-            <AppointmentTable rows={appts} perspective="admin" timezone={tz} hrefBase="/admin/appointments" />
+            <AppointmentTable rows={appts} perspective="admin" timezone={tz} hrefBase="/admin/appointments" hide={["patient"]} />
           </Card>
           {hasPermission(viewer, "clinical.read") && (
             <Card>

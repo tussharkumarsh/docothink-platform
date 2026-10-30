@@ -97,7 +97,7 @@ export default async function AdminDoctorPage({ params }: PageProps<"/admin/doct
 
           <Card>
             <CardHeader title="Recent appointments" />
-            <AppointmentTable rows={appts} perspective="admin" timezone={tz} hrefBase="/admin/appointments" />
+            <AppointmentTable rows={appts} perspective="admin" timezone={tz} hrefBase="/admin/appointments" hide={["doctor"]} />
           </Card>
         </div>
 
