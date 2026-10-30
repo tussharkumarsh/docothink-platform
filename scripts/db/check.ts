@@ -59,12 +59,91 @@ async function main() {
     }
   }
 
+  const started = Date.now();
+  const demoProblems = await demoRoundTrip(db).catch((error: Error) => [`unexpected error: ${error.message}`]);
+  if (demoProblems.length) {
+    failed++;
+    console.error(`✗ demo seed/cleanup round trip\n  ${demoProblems.join("\n  ")}`);
+  } else {
+    console.log(`✓ demo seed/cleanup round trip (${Date.now() - started} ms)`);
+  }
+
   await db.close();
   if (failed > 0) {
     console.error(`\n${failed} SQL test file(s) failed`);
     process.exit(1);
   }
   console.log(`\nAll ${tests.length} SQL test files passed`);
+}
+
+/**
+ * supabase/demo/seed-demo.sql then cleanup-demo.sql against the seeded database: the demo dataset
+ * is complete and consistent, can't be seeded twice, won't be removed while real data points at it,
+ * and leaves no trace (and no damage to the real seed accounts) afterwards. Returns the problems found.
+ */
+async function demoRoundTrip(db: PGlite): Promise<string[]> {
+  const problems: string[] = [];
+  const count = async (sql: string) => Number((await db.query<{ n: number }>(sql)).rows[0].n);
+  const expect = (ok: boolean, message: string) => {
+    if (!ok) problems.push(message);
+  };
+  const realAccounts = "select count(*)::int as n from public.profiles where not is_demo";
+  const before = await count(realAccounts);
+  const seed = read("supabase", "demo", "seed-demo.sql");
+  const cleanup = read("supabase", "demo", "cleanup-demo.sql");
+
+  await db.exec(seed);
+  const doctors = await count("select count(*)::int as n from public.doctor_profiles where is_demo and application_status = 'approved'");
+  const patients = await count("select count(*)::int as n from public.profiles where is_demo and role = 'patient'");
+  const appointments = await count("select count(*)::int as n from public.appointments a join public.profiles p on p.id = a.doctor_id where p.is_demo");
+  const reviews = await count("select count(*)::int as n from public.doctor_reviews r join public.profiles p on p.id = r.doctor_id where p.is_demo");
+  console.log(`  demo      ${doctors} doctors, ${patients} patients, ${appointments} appointments, ${reviews} reviews`);
+  expect(doctors >= 60, `expected ≥ 60 approved demo doctors, got ${doctors}`);
+  expect(patients >= 230, `expected ≥ 230 demo patients, got ${patients}`);
+  expect(appointments >= 500, `expected ≥ 500 demo appointments, got ${appointments}`);
+  expect(reviews >= 200, `expected ≥ 200 demo reviews, got ${reviews}`);
+  expect(
+    (await count("select count(*)::int as n from public.doctor_profiles d where d.is_demo and not exists (select 1 from public.doctor_availability_rules r where r.doctor_id = d.user_id)")) === 0,
+    "every demo doctor needs availability",
+  );
+  expect(
+    (await count(`select count(*)::int as n from public.appointments a join public.profiles p on p.id = a.doctor_id
+       where p.is_demo and a.status = 'completed'
+         and (select count(*) from public.financial_ledger_entries l where l.appointment_id = a.id and l.entry_type = 'consultation_earning') <> 1`)) === 0,
+    "every completed demo appointment needs exactly one earning ledger entry",
+  );
+  expect((await count("select count(*)::int as n from demo_showcase")) === 6, "seed must return 6 showcase logins");
+  expect((await count("select count(*)::int as n from public.email_outbox")) === 0, "seed must not queue emails");
+
+  await db.exec(seed).then(
+    () => problems.push("a second seed run must fail with DEMO_ALREADY_SEEDED"),
+    (error: Error) => expect(error.message.includes("DEMO_ALREADY_SEEDED"), `second seed failed for the wrong reason: ${error.message}`),
+  );
+
+  // A real patient (Emily) booked with a demo doctor: cleanup must refuse.
+  await db.exec(`insert into public.appointments (id, patient_id, doctor_id, mode, status, start_at, end_at, doctor_timezone,
+      patient_timezone, currency, fee_snapshot, fee_amount, commission_bps)
+    select '00000000-0000-4000-8000-00000000d001', '00000000-0000-4000-8000-000000000201', user_id, 'video', 'completed',
+      now() - interval '5 days', now() - interval '5 days' + interval '20 minutes', timezone, 'America/New_York', currency,
+      '{"video": 100}', 100, 1000
+    from public.doctor_profiles where is_demo limit 1`);
+  await db.exec(cleanup).then(
+    () => problems.push("cleanup must refuse while a real account has an appointment with a demo account"),
+    async (error: Error) => {
+      await db.exec("rollback;").catch(() => {});
+      expect(error.message.includes("REAL_DATA_LINKED"), `cleanup refused for the wrong reason: ${error.message}`);
+    },
+  );
+  await db.exec("delete from public.appointments where id = '00000000-0000-4000-8000-00000000d001'");
+
+  await db.exec(cleanup);
+  expect((await count("select count(*)::int as n from public.profiles where is_demo")) === 0, "cleanup must remove every demo account");
+  expect((await count("select count(*)::int as n from auth.users where email like '%@demo.docothink.test'")) === 0, "cleanup must remove demo auth users");
+  expect((await count("select count(*)::int as n from public.platform_settings where key = 'demo'")) === 0, "cleanup must remove the demo setting");
+  expect((await count(realAccounts)) === before, "cleanup must not touch real accounts");
+  expect((await count("select count(*)::int as n from public.doctor_profiles where not is_demo and application_status = 'approved'")) === 3,
+    "the 3 approved seed doctors must remain");
+  return problems;
 }
 
 main();
