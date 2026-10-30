@@ -52,6 +52,11 @@ const MESSAGES: Record<string, string> = {
   INVALID_SPECIALTIES: "Choose between 1 and 5 specialties.",
   INVALID_PRIMARY_SPECIALTY: "Choose a primary specialty from your selection.",
   RATE_LIMITED: "Too many attempts. Please wait a moment and try again.",
+  REVIEW_EXISTS: "You've already reviewed this consultation.",
+  REVIEW_NOT_ALLOWED: "Reviews can be left only for completed consultations in the last 30 days.",
+  INVALID_RATING: "Choose a rating from 1 to 5 stars.",
+  COMMENT_TOO_LONG: "Please keep your comment under 1,000 characters.",
+  REVIEW_NOT_FOUND: "That review no longer needs moderation.",
 };
 
 const INCOMPLETE_FIELDS: Record<string, string> = {

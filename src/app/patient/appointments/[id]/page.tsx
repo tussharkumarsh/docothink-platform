@@ -18,6 +18,7 @@ import {
   withdrawRescheduleAction,
 } from "@/features/booking/actions";
 import { paymentsConfigured, testPaymentsEnabled } from "@/lib/payments";
+import { ReviewForm } from "@/features/reviews/components/review-form";
 import { MODE_LABELS, type ConsultationMode } from "@/lib/domain";
 import { formatMoney, patientRefundPercent } from "@/lib/money";
 import { formatDateTime } from "@/lib/time/format";
@@ -38,13 +39,15 @@ export default async function PatientAppointmentPage({ params, searchParams }: P
   const tz = viewer.timezone !== "UTC" ? viewer.timezone : appt.patient_timezone;
 
   const supabase = await createClient();
-  const [settings, intake, events, { data: prescriptions }, { data: payments }] = await Promise.all([
+  const [settings, intake, events, { data: prescriptions }, { data: payments }, { data: review }] = await Promise.all([
     getPlatformSettings(),
     getIntake(id),
     getAppointmentEvents(id),
     supabase.from("prescriptions").select("id, version, status, finalized_at").eq("appointment_id", id).order("version", { ascending: false }),
     supabase.from("payment_records").select("id, purpose, amount, currency, status, created_at").eq("appointment_id", id).order("created_at"),
+    supabase.from("doctor_reviews").select("rating, comment, comment_status").eq("appointment_id", id).maybeSingle(),
   ]);
+  const canReview = appt.status === "completed" && !review && Date.parse(appt.end_at) > nowMs() - 30 * 86_400_000;
 
   const window = joinWindow(appt.start_at, appt.end_at, settings.consultation);
   const upcoming = appt.status === "confirmed" && Date.parse(appt.start_at) > nowMs();
@@ -147,6 +150,34 @@ export default async function PatientAppointmentPage({ params, searchParams }: P
                     </Button>
                   </form>
                 ))}
+              </div>
+            </Card>
+          )}
+
+          {canReview && (
+            <Card>
+              <CardHeader title="Rate your consultation" description="Your rating helps other patients choose. It appears with your first name and last initial unless you post anonymously." />
+              <div className="p-5">
+                <ReviewForm appointmentId={appt.id} />
+              </div>
+            </Card>
+          )}
+
+          {review && (
+            <Card>
+              <CardHeader title="Your review" />
+              <div className="space-y-2 p-5 text-sm">
+                <p className="text-lg text-amber-400" aria-label={`${review.rating} out of 5 stars`}>
+                  {"★".repeat(review.rating)}<span className="text-slate-300">{"★".repeat(5 - review.rating)}</span>
+                </p>
+                {review.comment && (
+                  <>
+                    <p className="text-slate-700">{review.comment}</p>
+                    <Badge tone={review.comment_status === "approved" ? "success" : review.comment_status === "hidden" ? "neutral" : "warning"}>
+                      {review.comment_status === "approved" ? "Published" : review.comment_status === "hidden" ? "Not published" : "Awaiting review"}
+                    </Badge>
+                  </>
+                )}
               </div>
             </Card>
           )}
