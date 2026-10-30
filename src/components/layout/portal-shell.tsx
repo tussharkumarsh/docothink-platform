@@ -3,6 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { Bell, LogOut, Menu } from "lucide-react";
 import { Logo } from "./site-chrome";
 import { NavLinks, type NavItem } from "./portal-nav";
+import { DemoNotice } from "./demo-notice";
 import { getViewer } from "@/lib/auth/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { signOutAction } from "@/features/auth/actions";
@@ -64,6 +65,9 @@ export function PortalShell({ label, nav, notificationsHref, children }: { label
             </Suspense>
           </div>
         </header>
+        <Suspense fallback={null}>
+          <DemoNotice />
+        </Suspense>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-8">{children}</main>
       </div>
     </div>
