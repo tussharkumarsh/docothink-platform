@@ -93,6 +93,7 @@ async function demoRoundTrip(db: PGlite): Promise<string[]> {
   const cleanup = read("supabase", "demo", "cleanup-demo.sql");
 
   await db.exec(seed);
+  await db.exec(read("supabase", "demo", "enrich-demo-profiles.sql"));
   const doctors = await count("select count(*)::int as n from public.doctor_profiles where is_demo and application_status = 'approved'");
   const patients = await count("select count(*)::int as n from public.profiles where is_demo and role = 'patient'");
   const appointments = await count("select count(*)::int as n from public.appointments a join public.profiles p on p.id = a.doctor_id where p.is_demo");
@@ -113,6 +114,11 @@ async function demoRoundTrip(db: PGlite): Promise<string[]> {
     "every completed demo appointment needs exactly one earning ledger entry",
   );
   expect((await count("select count(*)::int as n from demo_showcase")) === 6, "seed must return 6 showcase logins");
+  expect(
+    (await count("select count(*)::int as n from public.doctor_profiles where is_demo and (cardinality(services) < 3 or cardinality(special_interests) < 1 or practice_started_year is null)")) === 0,
+    "every demo doctor needs ≥ 3 services, ≥ 1 special interest and a practice start year",
+  );
+  expect((await count("select count(*)::int as n from public.doctor_private_details")) === 0, "demo data must not create bank or tax details");
   expect((await count("select count(*)::int as n from public.email_outbox")) === 0, "seed must not queue emails");
 
   await db.exec(seed).then(

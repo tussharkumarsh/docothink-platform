@@ -6,6 +6,7 @@
 --   npx supabase db query --linked -f supabase/demo/seed-demo.sql
 --
 -- Refuses to run twice. Returns the showcase logins (3 doctors, 3 patients) as its last result.
+-- Then run supabase/demo/enrich-demo-profiles.sql to fill the doctors' professional profile sections.
 -- ============================================================================
 
 drop table if exists demo_showcase;
