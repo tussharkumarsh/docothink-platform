@@ -84,7 +84,7 @@ export async function createCredentialUploadAction(input: { kind: string; fileNa
   if (!viewer || viewer.role !== "doctor") return { ok: false, error: "Please sign in as a doctor." };
   const parsed = z
     .object({
-      kind: z.enum(["medical_degree", "registration_certificate", "identity_document", "other"]),
+      kind: z.enum(["medical_degree", "registration_certificate", "identity_document", "other", "bank_proof"]),
       fileName: z.string().max(255),
       mimeType: z.enum(CREDENTIAL_TYPES),
       size: z.number().int().positive().max(10 * 1024 * 1024),

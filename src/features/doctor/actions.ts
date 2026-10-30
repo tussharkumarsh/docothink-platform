@@ -10,6 +10,7 @@ import { CURRENCIES, toMinor } from "@/lib/money";
 import { isValidTimezone } from "@/lib/time/format";
 import { CONSULTATION_MODES } from "@/lib/domain";
 import { Temporal } from "temporal-polyfill";
+import { BANK_COUNTRIES, BANK_FIELDS, parseLines, type BankCountry } from "./kyc";
 
 const TERMS_VERSION = "2026-10";
 
@@ -334,4 +335,109 @@ export async function amendPrescriptionAction(_: ActionResult, formData: FormDat
   if (error) return { ok: false, error: friendlyError(error) };
   revalidatePath("/doctor", "layout");
   return { ok: true, message: "Amendment draft created below." };
+}
+
+// ---------------------------------------------------------------------------
+// Professional details, address, bank & tax
+// ---------------------------------------------------------------------------
+
+const ADDRESS_KEYS = ["address_line1", "address_line2", "city", "region", "postal_code", "country"] as const;
+const BANK_KEYS = [
+  "account_holder_name", "bank_name", "bank_country", "account_number", "ifsc", "sort_code",
+  "routing_number", "account_type", "pan", "gstin", "tax_id",
+] as const;
+
+/** "Title | Organisation | Year" per line, the same convention as the education field. */
+function pipeRows<T>(text: string, max: number, toRow: (parts: string[]) => T | null): { rows: T[]; error?: string } {
+  const all = lines(text);
+  if (all.length > max) return { rows: [], error: `Keep it to ${max} entries or fewer.` };
+  const rows = all.map((l) => toRow(l.split("|").map((s) => s.trim()))).filter((r): r is T => r !== null);
+  return { rows };
+}
+const year = (s?: string) => (s && /^\d{4}$/.test(s) ? Number(s) : undefined);
+
+export async function updateProfessionalDetailsAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  const viewer = await requireRole("doctor");
+  const f = Object.fromEntries(formData) as Record<string, string>;
+  const interests = parseLines(f.special_interests ?? "", 15, 80);
+  const services = parseLines(f.services ?? "", 40, 120);
+  const skills = parseLines(f.skills ?? "", 30, 80);
+  const awards = pipeRows(f.awards ?? "", 20, ([title, organization, y]) => (title ? { title: title.slice(0, 200), organization: organization || undefined, year: year(y) } : null));
+  const memberships = pipeRows(f.memberships ?? "", 20, ([organization, role, since]) => (organization ? { organization: organization.slice(0, 200), role: role || undefined, since: year(since) } : null));
+  const publications = pipeRows(f.publications ?? "", 30, ([title, journal, y, url]) =>
+    title ? { title: title.slice(0, 300), journal: journal || undefined, year: year(y), url: url && /^https?:\/\//.test(url) ? url : undefined } : null);
+  const fieldErrors: Record<string, string[]> = {};
+  for (const [key, r] of Object.entries({ special_interests: interests, services, skills, awards, memberships, publications })) {
+    if (r.error) fieldErrors[key] = [r.error];
+  }
+  const started = f.practice_started_year?.trim() ? Number(f.practice_started_year) : null;
+  if (started !== null && (!Number.isInteger(started) || started < 1950 || started > new Date().getFullYear())) {
+    fieldErrors.practice_started_year = ["Enter a year between 1950 and this year"];
+  }
+  if (Object.keys(fieldErrors).length) {
+    const labels: Record<string, string> = {
+      special_interests: "Special interests", services: "Services", skills: "Skills", awards: "Awards",
+      memberships: "Memberships", publications: "Publications", practice_started_year: "Year started",
+    };
+    const summary = Object.entries(fieldErrors).map(([k, v]) => `${labels[k]}: ${v[0]}`).join(" ");
+    return { ok: false, error: summary, fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("doctor_profiles").update({
+    special_interests: interests.items,
+    services: services.items,
+    skills: skills.items,
+    awards: awards.rows,
+    memberships: memberships.rows,
+    publications: publications.rows,
+    practice_started_year: started,
+  }).eq("user_id", viewer.id);
+  if (error) return { ok: false, error: friendlyError(error) };
+  revalidateTag("doctors", "max");
+  revalidatePath("/doctor", "layout");
+  return { ok: true, message: "Professional details saved." };
+}
+
+async function savePrivate(viewerId: string, changes: Record<string, string | null>): Promise<ActionResult<string>> {
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("doctor_private_details").select("*").eq("doctor_id", viewerId).maybeSingle();
+  const merged: Record<string, string | null> = {};
+  for (const k of [...ADDRESS_KEYS, ...BANK_KEYS]) merged[k] = (current as Record<string, string | null> | null)?.[k] ?? null;
+  Object.assign(merged, changes);
+  const { data, error } = await supabase.rpc("save_private_details", { p: merged });
+  if (error) return { ok: false, error: friendlyError(error) };
+  revalidatePath("/doctor", "layout");
+  return { ok: true, data: data as string };
+}
+
+export async function saveAddressAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  const viewer = await requireRole("doctor");
+  const f = Object.fromEntries(formData) as Record<string, string>;
+  const changes = Object.fromEntries(ADDRESS_KEYS.map((k) => [k, f[k]?.trim() || null]));
+  if (!changes.address_line1 || !changes.city || !changes.postal_code || !changes.country) {
+    return { ok: false, error: "Address line 1, city, postal code and country are required." };
+  }
+  const result = await savePrivate(viewer.id, changes);
+  return result.ok ? { ok: true, message: "Address saved." } : result;
+}
+
+export async function saveBankDetailsAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  const viewer = await requireRole("doctor");
+  const f = Object.fromEntries(formData) as Record<string, string>;
+  const country = f.bank_country as BankCountry;
+  if (!BANK_COUNTRIES.includes(country)) return { ok: false, error: "Choose the country of your bank account." };
+  const { required, optional } = BANK_FIELDS[country];
+  const value = (k: string) => (f[k] ?? "").trim() || null;
+  const changes: Record<string, string | null> = Object.fromEntries(BANK_KEYS.map((k) => [k, null]));
+  changes.bank_country = country;
+  for (const k of [...required, ...optional]) changes[k] = value(k);
+  const missing = required.filter((k) => !changes[k]);
+  if (missing.length) {
+    const names = missing.map((k) => k.replaceAll("_", " ")).join(", ");
+    return { ok: false, error: `Please fill in: ${names}.`, fieldErrors: Object.fromEntries(missing.map((k) => [k, ["Required"]])) };
+  }
+  const result = await savePrivate(viewer.id, changes);
+  if (!result.ok) return result;
+  return { ok: true, message: result.data === "pending" ? "Saved and sent for verification." : "Saved." };
 }

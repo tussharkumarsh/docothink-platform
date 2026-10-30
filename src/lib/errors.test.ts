@@ -11,3 +11,13 @@ describe("friendlyError for reviews", () => {
     expect(friendlyError({ message: "COMMENT_TOO_LONG" })).toBe("Please keep your comment under 1,000 characters.");
   });
 });
+
+describe("friendlyError for bank and KYC details", () => {
+  it("names the field that failed validation", () => {
+    expect(friendlyError({ message: "INVALID_IFSC" })).toBe("Enter a valid IFSC code, e.g. SBIN0001234.");
+    expect(friendlyError({ message: "INVALID_PAN" })).toBe("Enter a valid PAN, e.g. ABCDE1234F.");
+    expect(friendlyError({ message: "INVALID_ACCOUNT_NUMBER" })).toBe("Enter a valid account number for the selected country.");
+    expect(friendlyError({ message: "MISMATCHED_FIELDS" })).toBe("Some details don't belong to the selected bank country. Clear them and try again.");
+    expect(friendlyError({ message: "NOT_PENDING" })).toBe("These details aren't waiting for review.");
+  });
+});

@@ -59,6 +59,18 @@ const MESSAGES: Record<string, string> = {
   REVIEW_NOT_FOUND: "That review no longer needs moderation.",
   DEMO_DOCTOR_NOT_BOOKABLE: "This is a demo profile and can't be booked. Please choose another doctor.",
   DEMO_PATIENT_REAL_DOCTOR: "Demo accounts can only book demo doctors.",
+  INVALID_IFSC: "Enter a valid IFSC code, e.g. SBIN0001234.",
+  INVALID_PAN: "Enter a valid PAN, e.g. ABCDE1234F.",
+  INVALID_GSTIN: "Enter a valid 15-character GSTIN.",
+  INVALID_ACCOUNT_NUMBER: "Enter a valid account number for the selected country.",
+  INVALID_SORT_CODE: "Enter a 6-digit sort code.",
+  INVALID_ROUTING_NUMBER: "Enter a 9-digit routing number.",
+  INVALID_TAX_ID: "Enter a 9-digit SSN or EIN.",
+  INVALID_ACCOUNT_TYPE: "Choose checking or savings.",
+  INVALID_BANK_COUNTRY: "Choose India, the United Kingdom or the United States.",
+  INVALID_COUNTRY: "Use a two-letter country code, e.g. IN.",
+  MISMATCHED_FIELDS: "Some details don't belong to the selected bank country. Clear them and try again.",
+  NOT_PENDING: "These details aren't waiting for review.",
 };
 
 const INCOMPLETE_FIELDS: Record<string, string> = {

@@ -23,7 +23,7 @@ function putWithProgress(url: string, file: File, onProgress: (pct: number) => v
 
 type Variant =
   | { kind: "medical"; maxMb: number; appointments?: { id: string; label: string }[] }
-  | { kind: "credential" };
+  | { kind: "credential"; fixedKind?: "bank_proof" };
 
 export function Uploader(props: Variant) {
   const router = useRouter();
@@ -97,6 +97,8 @@ export function Uploader(props: Variant) {
               </Field>
             )}
           </>
+        ) : props.fixedKind ? (
+          <input type="hidden" name="kind" value={props.fixedKind} />
         ) : (
           <Field label="Document type" htmlFor="kind">
             <Select id="kind" name="kind" defaultValue="registration_certificate">
