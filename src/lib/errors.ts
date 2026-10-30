@@ -57,6 +57,8 @@ const MESSAGES: Record<string, string> = {
   INVALID_RATING: "Choose a rating from 1 to 5 stars.",
   COMMENT_TOO_LONG: "Please keep your comment under 1,000 characters.",
   REVIEW_NOT_FOUND: "That review no longer needs moderation.",
+  DEMO_DOCTOR_NOT_BOOKABLE: "This is a demo profile and can't be booked. Please choose another doctor.",
+  DEMO_PATIENT_REAL_DOCTOR: "Demo accounts can only book demo doctors.",
 };
 
 const INCOMPLETE_FIELDS: Record<string, string> = {

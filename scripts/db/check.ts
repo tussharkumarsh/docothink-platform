@@ -120,13 +120,21 @@ async function demoRoundTrip(db: PGlite): Promise<string[]> {
     (error: Error) => expect(error.message.includes("DEMO_ALREADY_SEEDED"), `second seed failed for the wrong reason: ${error.message}`),
   );
 
-  // A real patient (Emily) booked with a demo doctor: cleanup must refuse.
-  await db.exec(`insert into public.appointments (id, patient_id, doctor_id, mode, status, start_at, end_at, doctor_timezone,
+  // A real patient (Emily) can't book a demo doctor; if such a row existed anyway (simulated with the
+  // guard off), cleanup must refuse rather than delete it.
+  const linkReal = `insert into public.appointments (id, patient_id, doctor_id, mode, status, start_at, end_at, doctor_timezone,
       patient_timezone, currency, fee_snapshot, fee_amount, commission_bps)
     select '00000000-0000-4000-8000-00000000d001', '00000000-0000-4000-8000-000000000201', user_id, 'video', 'completed',
       now() - interval '5 days', now() - interval '5 days' + interval '20 minutes', timezone, 'America/New_York', currency,
       '{"video": 100}', 100, 1000
-    from public.doctor_profiles where is_demo limit 1`);
+    from public.doctor_profiles where is_demo limit 1`;
+  await db.exec(linkReal).then(
+    () => problems.push("a real patient must not be able to book a demo doctor"),
+    (error: Error) => expect(error.message.includes("DEMO_DOCTOR_NOT_BOOKABLE"), `real-patient booking failed for the wrong reason: ${error.message}`),
+  );
+  await db.exec(`alter table public.appointments disable trigger appointments_demo_guard;
+    ${linkReal};
+    alter table public.appointments enable trigger appointments_demo_guard;`);
   await db.exec(cleanup).then(
     () => problems.push("cleanup must refuse while a real account has an appointment with a demo account"),
     async (error: Error) => {

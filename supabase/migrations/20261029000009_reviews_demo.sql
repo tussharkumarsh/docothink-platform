@@ -8,6 +8,48 @@
 alter table public.profiles add column is_demo boolean not null default false;
 alter table public.doctor_profiles add column is_demo boolean not null default false;
 
+-- Demo and real accounts never share an appointment: real patients can't pay fictional doctors, and
+-- cleanup never has to choose between keeping demo rows and deleting real ones.
+create function public.guard_demo_appointment()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_doctor_demo boolean := (select is_demo from public.profiles where id = new.doctor_id);
+  v_patient_demo boolean := (select is_demo from public.profiles where id = new.patient_id);
+begin
+  if v_doctor_demo and not v_patient_demo then
+    raise exception 'DEMO_DOCTOR_NOT_BOOKABLE' using errcode = 'P0001';
+  end if;
+  if v_patient_demo and not v_doctor_demo then
+    raise exception 'DEMO_PATIENT_REAL_DOCTOR' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+create trigger appointments_demo_guard before insert or update of patient_id, doctor_id on public.appointments
+  for each row execute function public.guard_demo_appointment();
+
+-- Nothing is ever emailed to a demo account or the reserved demo domain (reminders, receipts, sweeps).
+create function public.drop_demo_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.to_email ilike '%@demo.docothink.test'
+     or exists (select 1 from public.profiles where id = new.to_user_id and is_demo) then
+    return null;
+  end if;
+  return new;
+end;
+$$;
+create trigger email_outbox_drop_demo before insert on public.email_outbox
+  for each row execute function public.drop_demo_email();
+
 -- ---------------------------------------------------------------------------
 -- Reviews
 -- ---------------------------------------------------------------------------
@@ -140,7 +182,8 @@ begin
 end;
 $$;
 
--- Public face of reviews: approved comments only, a display name, never the patient id.
+-- Public face of reviews: approved comments only, never the patient id, and a name only beside a
+-- published comment (a bare star rating must not tie a named person to a specialty). Dates are day-level.
 create view public.public_doctor_reviews
 with (security_invoker = false) as
 select
@@ -150,12 +193,14 @@ select
   case when r.comment_status = 'approved' then r.comment end as comment,
   case
     when r.is_anonymous then 'Anonymous patient'
+    when r.comment_status <> 'approved' then 'Verified patient'
     when position(' ' in trim(coalesce(p.full_name, ''))) = 0 then coalesce(nullif(trim(p.full_name), ''), 'Verified patient')
     else split_part(trim(p.full_name), ' ', 1) || ' ' || upper(left(regexp_replace(trim(p.full_name), '^.*\s+', ''), 1)) || '.'
   end as reviewer_name,
-  r.created_at
+  r.created_at::date as created_at
 from public.doctor_reviews r
-join public.profiles p on p.id = r.patient_id;
+join public.profiles p on p.id = r.patient_id
+join public.doctor_profiles d on d.user_id = r.doctor_id and d.application_status = 'approved';
 
 -- ---------------------------------------------------------------------------
 -- Access

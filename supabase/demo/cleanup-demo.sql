@@ -10,6 +10,9 @@
 
 begin;
 
+-- Hold off new bookings until commit, so nothing can link real and demo accounts after the check below.
+lock table public.appointments in share row exclusive mode;
+
 do $$
 declare
   v_refs text;

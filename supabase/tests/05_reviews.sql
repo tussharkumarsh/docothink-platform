@@ -42,10 +42,12 @@ select tests.login('00000000-0000-4000-8000-000000000202');
 select tests.expect_error($$select public.submit_review('00000000-0000-4000-8000-00000000a001', 4::smallint, null, false)$$, 'FORBIDDEN');
 reset role;
 
--- Public view: name as "First L.", no comment before approval, no patient id column at all.
+-- Public view: no comment before approval, no name without a published comment, day-level dates, no patient id.
 select tests.login_anon();
-select tests.assert((select reviewer_name from public.public_doctor_reviews where doctor_id = '00000000-0000-4000-8000-000000000101') = 'Emily C.',
-  'reviewer shown as first name + last initial');
+select tests.assert((select reviewer_name from public.public_doctor_reviews where doctor_id = '00000000-0000-4000-8000-000000000101') = 'Verified patient',
+  'no name shown until a comment is published');
+select tests.assert(pg_typeof((select created_at from public.public_doctor_reviews limit 1))::text = 'date',
+  'public view exposes the review date, not the exact time');
 select tests.assert((select comment from public.public_doctor_reviews where doctor_id = '00000000-0000-4000-8000-000000000101') is null,
   'pending comment hidden from public');
 select tests.expect_error('select * from public.doctor_reviews', 'permission denied');
@@ -70,6 +72,8 @@ reset role;
 select tests.login_anon();
 select tests.assert((select comment from public.public_doctor_reviews where doctor_id = '00000000-0000-4000-8000-000000000101') = 'Very thorough',
   'approved comment visible to public');
+select tests.assert((select reviewer_name from public.public_doctor_reviews where doctor_id = '00000000-0000-4000-8000-000000000101') = 'Emily C.',
+  'published comment shows first name + last initial');
 reset role;
 select tests.login('00000000-0000-4000-8000-000000000001');
 select public.moderate_review((select id from public.doctor_reviews where appointment_id = '00000000-0000-4000-8000-00000000a001'), 'hidden');
@@ -79,8 +83,8 @@ select tests.assert((select comment from public.public_doctor_reviews where doct
 select tests.assert((select rating_count from public.doctor_profiles where user_id = '00000000-0000-4000-8000-000000000101') = 1,
   'hidden review still counts toward stars');
 
--- Anonymous reviews show no name.
-update public.doctor_reviews set is_anonymous = true where appointment_id = '00000000-0000-4000-8000-00000000a001';
+-- Anonymous reviews show no name, even with a published comment.
+update public.doctor_reviews set is_anonymous = true, comment_status = 'approved' where appointment_id = '00000000-0000-4000-8000-00000000a001';
 select tests.assert((select reviewer_name from public.public_doctor_reviews where doctor_id = '00000000-0000-4000-8000-000000000101') = 'Anonymous patient',
   'anonymous review shows no name');
 
