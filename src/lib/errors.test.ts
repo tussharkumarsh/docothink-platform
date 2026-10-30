@@ -24,3 +24,12 @@ describe("friendlyError for bank and KYC details", () => {
     );
   });
 });
+
+describe("friendlyError for settlement invoices", () => {
+  it("explains why an invoice can't be raised", () => {
+    expect(friendlyError({ message: "KYC_NOT_VERIFIED" })).toBe("Your bank details need to be verified before you can raise an invoice.");
+    expect(friendlyError({ message: "NOTHING_SELECTED" })).toBe("Select at least one consultation.");
+    expect(friendlyError({ message: "ENTRY_NOT_INVOICEABLE" })).toBe("One of the selected consultations is no longer available to invoice. Refresh and try again.");
+    expect(friendlyError({ message: "MIXED_CURRENCY" })).toBe("An invoice can only include consultations in one currency.");
+  });
+});

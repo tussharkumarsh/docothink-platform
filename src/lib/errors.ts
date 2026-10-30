@@ -71,6 +71,10 @@ const MESSAGES: Record<string, string> = {
   INVALID_COUNTRY: "Use a two-letter country code, e.g. IN.",
   MISMATCHED_FIELDS: "Some details don't belong to the selected bank country. Clear them and try again.",
   NOT_PENDING: "These details aren't waiting for review.",
+  KYC_NOT_VERIFIED: "Your bank details need to be verified before you can raise an invoice.",
+  NOTHING_SELECTED: "Select at least one consultation.",
+  ENTRY_NOT_INVOICEABLE: "One of the selected consultations is no longer available to invoice. Refresh and try again.",
+  MIXED_CURRENCY: "An invoice can only include consultations in one currency.",
   STALE_DETAILS: "The doctor changed these details after you opened the page. Reload and check them again before deciding.",
 };
 

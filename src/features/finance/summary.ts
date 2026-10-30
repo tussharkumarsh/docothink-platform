@@ -14,7 +14,7 @@ export type LedgerRow = {
   in_payout: boolean;
 };
 
-export type PayoutRow = { status: string; amount: number; currency: string };
+export type PayoutRow = { status: string; amount: number; currency: string; tds_amount?: number | null };
 
 export type CurrencySummary = {
   currency: string;
@@ -26,13 +26,15 @@ export type CurrencySummary = {
   approved: number;
   paid: number;
   inReview: number;
+  /** TDS deducted from paid invoices (net was paid; this part goes to the tax authority). */
+  tdsWithheld: number;
 };
 
 export function summarise(ledger: LedgerRow[], payouts: PayoutRow[]): CurrencySummary[] {
   const by = new Map<string, CurrencySummary>();
   const get = (c: string) => {
     let s = by.get(c);
-    if (!s) by.set(c, (s = { currency: c, consultations: 0, gross: 0, commission: 0, net: 0, pendingSettlement: 0, approved: 0, paid: 0, inReview: 0 }));
+    if (!s) by.set(c, (s = { currency: c, consultations: 0, gross: 0, commission: 0, net: 0, pendingSettlement: 0, approved: 0, paid: 0, inReview: 0, tdsWithheld: 0 }));
     return s;
   };
   for (const e of ledger) {
@@ -46,7 +48,10 @@ export function summarise(ledger: LedgerRow[], payouts: PayoutRow[]): CurrencySu
   }
   for (const p of payouts) {
     const s = get(p.currency);
-    if (p.status === "paid") s.paid += p.amount;
+    if (p.status === "paid") {
+      s.paid += p.amount;
+      s.tdsWithheld += p.tds_amount ?? 0;
+    }
     else if (p.status === "approved" || p.status === "processing") s.approved += p.amount;
     else if (p.status === "pending" || p.status === "under_review" || p.status === "on_hold") s.inReview += p.amount;
   }
