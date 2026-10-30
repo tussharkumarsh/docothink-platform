@@ -38,10 +38,12 @@ alter table public.financial_ledger_entries disable trigger ledger_immutable;
 alter table public.commission_rules disable trigger commission_rules_immutable;
 alter table public.audit_logs disable trigger audit_logs_immutable;
 
+-- Ledger payout entries reference their payout, so: items, then ledger, then payouts (incl. invoices).
 delete from public.payout_items where ledger_entry_id in
-  (select id from public.financial_ledger_entries where doctor_id in (select id from demo_ids));
-delete from public.doctor_payouts where doctor_id in (select id from demo_ids);
+  (select id from public.financial_ledger_entries where doctor_id in (select id from demo_ids))
+  or payout_id in (select id from public.doctor_payouts where doctor_id in (select id from demo_ids));
 delete from public.financial_ledger_entries where doctor_id in (select id from demo_ids);
+delete from public.doctor_payouts where doctor_id in (select id from demo_ids);
 delete from public.refunds where appointment_id in (select id from public.appointments where doctor_id in (select id from demo_ids));
 delete from public.payment_records where appointment_id in (select id from public.appointments where doctor_id in (select id from demo_ids));
 delete from public.prescriptions where doctor_id in (select id from demo_ids);

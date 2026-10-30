@@ -118,7 +118,20 @@ async function demoRoundTrip(db: PGlite): Promise<string[]> {
     (await count("select count(*)::int as n from public.doctor_profiles where is_demo and (cardinality(services) < 3 or cardinality(special_interests) < 1 or practice_started_year is null)")) === 0,
     "every demo doctor needs ≥ 3 services, ≥ 1 special interest and a practice start year",
   );
-  expect((await count("select count(*)::int as n from public.doctor_private_details")) === 0, "demo data must not create bank or tax details");
+  expect((await count("select count(*)::int as n from public.doctor_private_details")) === 0, "seed and enrich must not create bank or tax details");
+  await db.exec(read("supabase", "demo", "demo-invoices.sql"));
+  for (const status of ["pending", "under_review", "approved", "paid", "failed"]) {
+    expect(
+      (await count(`select count(*)::int as n from public.doctor_payouts p join public.profiles d on d.id = p.doctor_id where d.is_demo and p.source = 'invoice' and p.status::text = '${status}'`)) >= 1,
+      `demo invoices must include one in status ${status}`,
+    );
+  }
+  expect(
+    (await count("select count(*)::int as n from public.doctor_payouts p where p.source = 'invoice' and p.status = 'paid' and not exists (select 1 from public.financial_ledger_entries l where l.payout_id = p.id and l.entry_type = 'payout')")) === 0,
+    "every paid demo invoice needs its ledger payout entry",
+  );
+  expect((await count("select count(*)::int as n from public.notifications n join public.profiles p on p.id = n.user_id where not p.is_demo")) === 0,
+    "demo invoices must not notify real accounts");
   expect((await count("select count(*)::int as n from public.email_outbox")) === 0, "seed must not queue emails");
 
   await db.exec(seed).then(
@@ -152,6 +165,8 @@ async function demoRoundTrip(db: PGlite): Promise<string[]> {
 
   await db.exec(cleanup);
   expect((await count("select count(*)::int as n from public.profiles where is_demo")) === 0, "cleanup must remove every demo account");
+  expect((await count("select count(*)::int as n from public.doctor_payouts p where not exists (select 1 from public.doctor_profiles d where d.user_id = p.doctor_id)")) === 0,
+    "cleanup must remove demo invoices");
   expect((await count("select count(*)::int as n from auth.users where email like '%@demo.docothink.test'")) === 0, "cleanup must remove demo auth users");
   expect((await count("select count(*)::int as n from public.platform_settings where key = 'demo'")) === 0, "cleanup must remove the demo setting");
   expect((await count(realAccounts)) === before, "cleanup must not touch real accounts");
