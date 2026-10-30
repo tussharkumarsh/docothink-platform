@@ -8,15 +8,21 @@ import { AppointmentTable } from "@/features/appointments/components/appointment
 import { getPlatformSettings, joinWindow } from "@/features/appointments/settings";
 import { formatMoney } from "@/lib/money";
 import { formatDateTime } from "@/lib/time/format";
+import { formatRating } from "@/features/catalog/discovery";
+import { ReviewList } from "@/features/reviews/components/review-list";
 
 export default async function DoctorDashboard() {
   const viewer = await requireApprovedDoctor();
   const supabase = await createClient();
-  const [upcoming, settings, { data: ledger }, { count: rules }] = await Promise.all([
+  const [upcoming, settings, { data: ledger }, { count: rules }, { data: profile }, { data: recentReviews }] = await Promise.all([
     listAppointments({ scope: "upcoming", limit: 20 }),
     getPlatformSettings(),
     supabase.from("financial_ledger_entries").select("amount, currency, entry_type"),
     supabase.from("doctor_availability_rules").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("doctor_profiles").select("rating_avg, rating_count").eq("user_id", viewer.id).single(),
+    // The public view shows comments only once approved, which is also what the doctor should see.
+    supabase.from("public_doctor_reviews").select("id, rating, comment, reviewer_name, created_at").eq("doctor_id", viewer.id)
+      .order("created_at", { ascending: false }).limit(5),
   ]);
   const balances = new Map<string, number>();
   for (const e of ledger ?? []) balances.set(e.currency, (balances.get(e.currency) ?? 0) + e.amount);
@@ -34,15 +40,22 @@ export default async function DoctorDashboard() {
           <div className="mt-2"><ButtonLink href={`/consult/${a.id}`} size="sm"><Video className="size-4" aria-hidden /> {a.status === "in_progress" ? "Rejoin" : "Start consultation"}</ButtonLink></div>
         </Alert>
       ))}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Today" value={today.length} hint="appointments" />
         <Stat label="Upcoming" value={upcoming.length} />
         <Stat label="Unpaid balance" value={balances.size ? [...balances].map(([c, v]) => formatMoney(v, c)).join(" · ") : formatMoney(0, "INR")} hint={<Link href="/doctor/earnings" className="text-brand-700 hover:underline">Earnings</Link>} />
+        <Stat label="Your rating" value={formatRating(profile?.rating_avg ?? null, profile?.rating_count ?? 0) ?? "No ratings yet"} hint="from verified patients" />
       </div>
       <Card className="mt-6">
         <CardHeader title="Upcoming appointments" action={<Link href="/doctor/appointments" className="text-sm text-brand-700 hover:underline">All appointments</Link>} />
         <AppointmentTable rows={upcoming} perspective="doctor" timezone={viewer.timezone} hrefBase="/doctor/appointments" />
       </Card>
+      {(recentReviews?.length ?? 0) > 0 && (
+        <Card className="mt-6">
+          <CardHeader title="Recent reviews" description="Written comments appear here once they've been approved." />
+          <ReviewList reviews={recentReviews!} timezone={viewer.timezone} />
+        </Card>
+      )}
     </>
   );
 }

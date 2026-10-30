@@ -7,6 +7,11 @@ import { BadgeCheck, GraduationCap, Languages, MapPin } from "lucide-react";
 import { Badge, Card, CardHeader, Skeleton } from "@/components/ui";
 import { getDoctorBySlug, getDoctorSlots, photoUrl } from "@/features/catalog/queries";
 import { feesOf } from "@/features/catalog/components/doctor-card";
+import { formatRating } from "@/features/catalog/discovery";
+import { InitialsAvatar } from "@/components/ui/avatar";
+import { getDoctorReviews, getRatingDistribution } from "@/features/reviews/queries";
+import { RatingSummary, StarRow } from "@/features/reviews/components/rating-summary";
+import { ReviewList } from "@/features/reviews/components/review-list";
 import { SlotPicker } from "@/features/catalog/components/slot-picker";
 import { isValidTimezone, supportedTimezones } from "@/lib/time/format";
 
@@ -42,6 +47,10 @@ export default async function DoctorPage({ params }: PageProps<"/doctors/[slug]"
   const { slug } = await params;
   const doctor = await getDoctorBySlug(slug);
   if (!doctor) notFound();
+  const [reviews, distribution] = doctor.rating_count > 0
+    ? await Promise.all([getDoctorReviews(doctor.user_id), getRatingDistribution(doctor.user_id)])
+    : [[], null];
+  const rating = formatRating(doctor.rating_avg, doctor.rating_count);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -49,17 +58,27 @@ export default async function DoctorPage({ params }: PageProps<"/doctors/[slug]"
         <div className="space-y-6">
           <Card className="p-6">
             <div className="flex flex-col gap-5 sm:flex-row">
-              <Image src={photoUrl(doctor.photo_path)} alt="" width={112} height={112} className="size-28 rounded-full object-cover ring-1 ring-slate-200" />
+              {doctor.photo_path ? (
+                <Image src={photoUrl(doctor.photo_path)} alt="" width={112} height={112} className="size-28 rounded-full object-cover ring-1 ring-slate-200" />
+              ) : (
+                <InitialsAvatar name={doctor.display_name} size={112} />
+              )}
               <div>
                 <h1 className="text-2xl font-semibold text-slate-900">
                   {doctor.title} {doctor.display_name}
                 </h1>
                 <p className="text-brand-700">{doctor.headline}</p>
+                {rating && (
+                  <a href="#reviews" className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-700 hover:underline">
+                    <StarRow rating={Number(doctor.rating_avg)} /> {rating}
+                  </a>
+                )}
                 <p className="mt-1 text-sm text-slate-600">{doctor.qualifications}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge tone="success"><BadgeCheck className="size-3" aria-hidden /> Registration verified</Badge>
                   {doctor.specialties.map((s) => <Badge key={s.slug} tone="info">{s.name}</Badge>)}
                   {doctor.years_experience != null && <Badge>{doctor.years_experience} years experience</Badge>}
+                  {doctor.is_demo && <Badge tone="warning">Demo profile</Badge>}
                 </div>
                 <dl className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                   {doctor.languages.length > 0 && (
@@ -102,6 +121,14 @@ export default async function DoctorPage({ params }: PageProps<"/doctors/[slug]"
                   </li>
                 ))}
               </ul>
+            </Card>
+          )}
+
+          {distribution && doctor.rating_avg != null && (
+            <Card id="reviews">
+              <CardHeader title="Patient reviews" description="Only patients who completed a consultation with this doctor can leave a review." />
+              <RatingSummary avg={Number(doctor.rating_avg)} distribution={distribution} />
+              <ReviewList reviews={reviews} />
             </Card>
           )}
 
