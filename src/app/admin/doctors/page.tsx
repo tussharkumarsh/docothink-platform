@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { Badge, Button, Card, Input, PageHeader, Select, Table } from "@/components/ui";
-import { requirePermission } from "@/lib/auth/viewer";
+import { hasPermission, requirePermission } from "@/lib/auth/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { APPLICATION_STATUS_LABELS, type DoctorApplicationStatus } from "@/lib/domain";
 import { formatDate } from "@/lib/time/format";
 
 export default async function AdminDoctorsPage({ searchParams }: PageProps<"/admin/doctors">) {
-  await requirePermission("doctors.manage");
+  const viewer = await requirePermission("doctors.manage");
+  const canFinance = hasPermission(viewer, "finance.manage");
   const sp = await searchParams;
   const status = typeof sp.status === "string" ? sp.status : "";
   const q = typeof sp.q === "string" ? sp.q.slice(0, 80) : "";
+  const kycPending = canFinance && sp.kyc === "pending";
   const supabase = await createClient();
   let query = supabase
     .from("doctor_profiles")
@@ -18,6 +20,10 @@ export default async function AdminDoctorsPage({ searchParams }: PageProps<"/adm
     .limit(200);
   if (status) query = query.eq("application_status", status);
   if (q) query = query.ilike("display_name", `%${q.replace(/[%_,()]/g, "")}%`);
+  if (kycPending) {
+    const { data: pending } = await supabase.from("admin_doctor_bank_masked").select("doctor_id").eq("kyc_status", "pending");
+    query = query.in("user_id", (pending ?? []).map((p) => p.doctor_id));
+  }
   const { data } = await query;
 
   return (
@@ -29,6 +35,11 @@ export default async function AdminDoctorsPage({ searchParams }: PageProps<"/adm
           <option value="">All statuses</option>
           {Object.entries(APPLICATION_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </Select>
+        {canFinance && (
+          <label className="flex items-center gap-2 px-2 text-sm text-slate-700">
+            <input type="checkbox" name="kyc" value="pending" defaultChecked={kycPending} /> Bank &amp; KYC awaiting verification
+          </label>
+        )}
         <Button type="submit" variant="secondary">Filter</Button>
       </form>
       <Card>

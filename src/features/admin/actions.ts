@@ -222,3 +222,30 @@ export async function moderateReviewAction(formData: FormData) {
   revalidatePath("/admin/reviews");
   revalidateTag("doctors", "max");
 }
+
+export async function reviewKycAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  await requirePermission("finance.manage");
+  const parsed = z
+    .object({ doctor_id: uuid, decision: z.enum(["verify", "request_changes"]), note: z.string().trim().max(1000).optional() })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: "Choose a decision." };
+  const failed = await rpc("review_private_details", { p_doctor: parsed.data.doctor_id, p_decision: parsed.data.decision, p_note: parsed.data.note || null });
+  if (failed) return failed;
+  revalidatePath(`/admin/doctors/${parsed.data.doctor_id}`);
+  return ok(parsed.data.decision === "verify" ? "Bank details verified. The doctor has been notified." : "Changes requested. The doctor has been notified.");
+}
+
+export type RevealedBank = { account_number: string | null; routing_number: string | null; pan: string | null; tax_id: string | null };
+
+/** Full bank/tax numbers, returned only in this action's response (never rendered into the page). Audited in SQL. */
+export async function revealBankAction(_: ActionResult<RevealedBank>, formData: FormData): Promise<ActionResult<RevealedBank>> {
+  await requirePermission("finance.manage");
+  const id = uuid.safeParse(formData.get("doctor_id"));
+  if (!id.success) return { ok: false, error: "Unknown doctor." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reveal_bank_details", { p_doctor: id.data });
+  if (error) return { ok: false, error: friendlyError(error) };
+  const row = (data as RevealedBank[] | null)?.[0];
+  if (!row) return { ok: false, error: "No bank details on file." };
+  return { ok: true, data: row };
+}

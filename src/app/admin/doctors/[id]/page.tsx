@@ -11,6 +11,7 @@ import { getPlatformSettings } from "@/features/appointments/settings";
 import { APPLICATION_STATUS_LABELS, MODE_LABELS, type DoctorApplicationStatus } from "@/lib/domain";
 import { formatMoney } from "@/lib/money";
 import { formatDateTime } from "@/lib/time/format";
+import { BankKycPanel, type MaskedBank } from "@/features/admin/components/bank-kyc-panel";
 
 const ACTIONS: Record<string, [string, string][]> = {
   submitted: [["start_review", "Start review"], ["approve", "Approve"], ["request_info", "Request more information"], ["reject", "Reject"]],
@@ -36,6 +37,10 @@ export default async function AdminDoctorPage({ params }: PageProps<"/admin/doct
     listAppointments({ doctorId: id, scope: "all", limit: 20 }),
   ]);
   if (!d) notFound();
+  const canFinance = hasPermission(viewer, "finance.manage");
+  const { data: bank } = canFinance
+    ? await supabase.from("admin_doctor_bank_masked").select("*").eq("doctor_id", id).maybeSingle()
+    : { data: null };
   const profile = d.profiles as unknown as { email: string; phone: string | null; is_active: boolean };
   const tz = settings.display.admin_timezone;
   const override = commission?.find((c) => c.doctor_id === id);
@@ -87,6 +92,8 @@ export default async function AdminDoctorPage({ params }: PageProps<"/admin/doct
               </tbody>
             </Table>
           </Card>
+
+          {canFinance && <BankKycPanel doctorId={id} bank={bank as MaskedBank | null} timezone={tz} />}
 
           <Card>
             <CardHeader title="Recent appointments" />
