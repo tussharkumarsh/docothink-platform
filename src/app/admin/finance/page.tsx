@@ -20,10 +20,8 @@ const NEXT_STATUSES: Record<string, string[]> = {
 export default async function FinancePage() {
   await requirePermission("finance.manage");
   const supabase = await createClient();
-  const settings = await getPlatformSettings();
-  const tz = settings.display.admin_timezone;
-  const todayLocal = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
-  const [ledger, { data: payouts }, { data: payments }, { data: refunds }, { data: doctors }, { data: platformRule }] = await Promise.all([
+  const [settings, ledger, { data: payouts }, { data: payments }, { data: refunds }, { data: doctors }, { data: platformRule }] = await Promise.all([
+    getPlatformSettings(),
     getLedger({ limit: 5000 }),
     supabase.from("doctor_payouts").select("id, doctor_id, amount, currency, status, transaction_reference, payout_method, notes, created_at, paid_at, payout_batches(settlement_date), doctor_profiles(title, display_name)").eq("source", "batch").order("created_at", { ascending: false }).limit(100),
     supabase.from("payment_records").select("id, appointment_id, purpose, provider, amount, currency, status, succeeded_at, created_at").order("created_at", { ascending: false }).limit(50),
@@ -31,6 +29,8 @@ export default async function FinancePage() {
     supabase.from("doctor_profiles").select("user_id, title, display_name").eq("application_status", "approved").order("display_name"),
     supabase.from("commission_rules").select("rate_bps, effective_from").is("doctor_id", null).order("effective_from", { ascending: false }).limit(1),
   ]);
+  const tz = settings.display.admin_timezone;
+  const todayLocal = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
 
   const byCurrency = new Map<string, { gross: number; commission: number; refundsReversed: number; unsettled: number }>();
   for (const e of ledger) {
@@ -48,8 +48,9 @@ export default async function FinancePage() {
       <PageHeader title="Finance & payouts" description="Ledger-based. Payout records never move money by themselves: transfers happen outside the platform and are recorded here with a reference." actions={
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <Link href="/admin/finance/invoices" className="font-medium text-brand-700 hover:underline">Doctor invoices</Link>
-          <Link href="/api/tds-report" className="text-brand-700 hover:underline">TDS report (CSV)</Link>
-          <Link href="/api/statements" className="text-brand-700 hover:underline">Export full ledger (CSV)</Link>
+          {/* Plain links: next/link would prefetch these downloads (and audit a TDS export) on every visit. */}
+          <a href="/api/tds-report" download className="text-brand-700 hover:underline">TDS report (CSV)</a>
+          <a href="/api/statements" download className="text-brand-700 hover:underline">Export full ledger (CSV)</a>
         </div>
       } />
 
@@ -107,7 +108,7 @@ export default async function FinancePage() {
               const next = NEXT_STATUSES[p.status] ?? [];
               return (
                 <tr key={p.id} className="align-top">
-                  <td>{doc ? `${doc.title} ${doc.display_name}` : p.doctor_id}<Link href={`/api/statements?doctor=${p.doctor_id}`} className="block text-xs text-brand-700 hover:underline">Statement</Link></td>
+                  <td>{doc ? `${doc.title} ${doc.display_name}` : p.doctor_id}<a href={`/api/statements?doctor=${p.doctor_id}`} download className="block text-xs text-brand-700 hover:underline">Statement</a></td>
                   <td>{formatDate((p.payout_batches as unknown as { settlement_date: string }).settlement_date)}</td>
                   <td className="text-right tabular-nums">{formatMoney(p.amount, p.currency)}</td>
                   <td><Badge tone={p.status === "paid" ? "success" : p.status === "failed" ? "danger" : p.status === "on_hold" ? "warning" : "neutral"}>{p.status.replace("_", " ")}</Badge>{p.transaction_reference && <span className="block font-mono text-xs">{p.transaction_reference}</span>}</td>

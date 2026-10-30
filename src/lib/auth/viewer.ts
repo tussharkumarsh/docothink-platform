@@ -32,26 +32,18 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   const userId = data?.claims?.sub;
   if (error || !userId) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, email, role, full_name, timezone, is_active")
-    .eq("id", userId)
-    .maybeSingle();
+  // One round trip instead of two: the role-specific rows are fetched alongside the profile (RLS limits
+  // each to the viewer's own rows) and only the one matching the role is used.
+  const [{ data: profile }, { data: perms }, { data: doc }] = await Promise.all([
+    supabase.from("profiles").select("id, email, role, full_name, timezone, is_active").eq("id", userId).maybeSingle(),
+    supabase.from("admin_permissions").select("permission").eq("user_id", userId),
+    supabase.from("doctor_profiles").select("application_status").eq("user_id", userId).maybeSingle(),
+  ]);
   if (!profile) return null;
 
-  let permissions: AdminPermission[] = [];
-  let doctorStatus: DoctorApplicationStatus | null = null;
-  if (profile.role === "admin") {
-    const { data: perms } = await supabase.from("admin_permissions").select("permission").eq("user_id", userId);
-    permissions = (perms ?? []).map((p) => p.permission as AdminPermission);
-  } else if (profile.role === "doctor") {
-    const { data: doc } = await supabase
-      .from("doctor_profiles")
-      .select("application_status")
-      .eq("user_id", userId)
-      .maybeSingle();
-    doctorStatus = (doc?.application_status as DoctorApplicationStatus) ?? null;
-  }
+  const permissions: AdminPermission[] = profile.role === "admin" ? (perms ?? []).map((p) => p.permission as AdminPermission) : [];
+  const doctorStatus: DoctorApplicationStatus | null =
+    profile.role === "doctor" ? ((doc?.application_status as DoctorApplicationStatus) ?? null) : null;
 
   return {
     id: profile.id,

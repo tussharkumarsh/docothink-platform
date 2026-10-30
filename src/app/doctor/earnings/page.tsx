@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Wallet } from "lucide-react";
-import { Alert, Badge, Button, ButtonLink, Card, CardHeader, EmptyState, PageHeader, Stat, Table } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, EmptyState, PageHeader, Stat, Table, buttonClasses } from "@/components/ui";
 import { requireApprovedDoctor } from "@/lib/auth/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { getLedger } from "@/features/finance/queries";
@@ -42,7 +42,7 @@ export default async function EarningsPage({ searchParams }: PageProps<"/doctor/
       <PageHeader
         title="Earnings"
         description={`Current platform commission: ${rate ? rate.rate_bps / 100 : 10}% of each paid consultation. Earnings are credited when a paid consultation is completed.`}
-        actions={<ButtonLink href="/api/statements" variant="secondary">Download statement (CSV)</ButtonLink>}
+        actions={<a href="/api/statements" download className={buttonClasses("secondary")}>Download statement (CSV)</a>}
       />
       <nav aria-label="Earnings sections" className="mb-6 flex flex-wrap gap-1.5">
         {TABS.map((t) => (

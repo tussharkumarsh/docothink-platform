@@ -136,7 +136,7 @@ export default async function AdminDoctorPage({ params }: PageProps<"/admin/doct
                 {profile.is_active ? "Deactivate account" : "Reactivate account"}
               </ConfirmSubmit>
             </form>
-            <Link href={`/api/statements?doctor=${id}`} className="mt-3 block text-sm text-brand-700 hover:underline">Download earnings statement</Link>
+            <a href={`/api/statements?doctor=${id}`} download className="mt-3 block text-sm text-brand-700 hover:underline">Download earnings statement</a>
           </Card>
           <Card className="p-5">
             <p className="mb-2 font-medium text-slate-900">History</p>
