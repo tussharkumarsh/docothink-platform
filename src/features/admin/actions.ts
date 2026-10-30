@@ -186,6 +186,15 @@ const SETTING_SCHEMAS = {
   uploads: z.object({ max_file_mb: z.coerce.number().int().min(1).max(25) }),
   branding: z.object({ name: z.string().trim().min(1).max(100), support_email: z.string().trim().email(), emergency_note: z.string().trim().max(500) }),
   display: z.object({ admin_timezone: z.string().refine(isValidTimezone, "Invalid time zone") }),
+  billing: z.object({
+    company_name: z.string().trim().max(200),
+    address: z.string().trim().max(500),
+    gstin: z.string().trim().toUpperCase().regex(/^([0-9]{2}[A-Z0-9]{13})?$/, "GSTIN must be 15 characters"),
+    pan: z.string().trim().toUpperCase().regex(/^([A-Z]{5}[0-9]{4}[A-Z])?$/, "PAN looks like ABCDE1234F"),
+    email: z.string().trim().email("Enter a valid email").or(z.literal("")),
+  }),
+  // Rate in basis points (1000 = 10%); TDS applies to Indian bank accounts only.
+  tds: z.object({ rate_bps: z.coerce.number().int().min(0).max(3000) }).transform((v) => ({ ...v, countries: ["IN"] })),
 } as const;
 
 export async function saveSettingAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -259,4 +268,14 @@ export async function revealBankAction(_: ActionResult<RevealedBank>, formData: 
   const row = (data as RevealedBank[] | null)?.[0];
   if (!row) return { ok: false, error: "No bank details on file." };
   return { ok: true, data: row };
+}
+
+export async function rejectInvoiceAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  await requirePermission("finance.manage");
+  const parsed = z.object({ payout_id: uuid, reason: z.string().trim().min(3, "Give the doctor a reason").max(1000) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Give a reason." };
+  const failed = await rpc("reject_invoice", { p_payout: parsed.data.payout_id, p_reason: parsed.data.reason });
+  if (failed) return failed;
+  revalidatePath("/admin/finance", "layout");
+  return ok("Invoice rejected. The consultations are released and the doctor has been notified.");
 }

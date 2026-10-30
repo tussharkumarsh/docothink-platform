@@ -1,4 +1,5 @@
-import { Card, CardHeader, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Card, CardHeader, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
+import { createClient } from "@/lib/supabase/server";
 import { ActionForm } from "@/components/ui/form-client";
 import { requirePermission } from "@/lib/auth/viewer";
 import { getPlatformSettings } from "@/features/appointments/settings";
@@ -13,7 +14,13 @@ function NumberField({ name, label, value, hint }: { name: string; label: string
 
 export default async function SettingsPage() {
   await requirePermission("settings.manage");
-  const s = await getPlatformSettings();
+  const supabase = await createClient();
+  const [s, { data: extra }] = await Promise.all([
+    getPlatformSettings(),
+    supabase.from("platform_settings").select("key, value").in("key", ["billing", "tds"]),
+  ]);
+  const billing = (extra?.find((r) => r.key === "billing")?.value ?? {}) as { company_name?: string; address?: string; gstin?: string; pan?: string; email?: string };
+  const tds = (extra?.find((r) => r.key === "tds")?.value ?? {}) as { rate_bps?: number };
   const env = serverEnv();
   return (
     <>
@@ -73,6 +80,32 @@ export default async function SettingsPage() {
               <input type="hidden" name="key" value="display" />
               <Field label="Admin display time zone" htmlFor="admin_timezone">
                 <Select id="admin_timezone" name="admin_timezone" defaultValue={s.display.admin_timezone}>{supportedTimezones().map((z) => <option key={z}>{z}</option>)}</Select>
+              </Field>
+            </ActionForm>
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Invoice billing details" description="Shown as “Bill to” on every doctor settlement invoice." />
+          <div className="p-5">
+            <ActionForm action={saveSettingAction} submitLabel="Save billing details">
+              <input type="hidden" name="key" value="billing" />
+              <Field label="Company name" htmlFor="company_name"><Input id="company_name" name="company_name" maxLength={200} defaultValue={billing.company_name ?? ""} /></Field>
+              <Field label="Address" htmlFor="address"><Textarea id="address" name="address" rows={3} maxLength={500} defaultValue={billing.address ?? ""} /></Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="GSTIN (optional)" htmlFor="billing_gstin"><Input id="billing_gstin" name="gstin" maxLength={15} defaultValue={billing.gstin ?? ""} /></Field>
+                <Field label="PAN (optional)" htmlFor="billing_pan"><Input id="billing_pan" name="pan" maxLength={10} defaultValue={billing.pan ?? ""} /></Field>
+              </div>
+              <Field label="Accounts email (optional)" htmlFor="billing_email"><Input id="billing_email" name="email" type="email" defaultValue={billing.email ?? ""} /></Field>
+            </ActionForm>
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="TDS on doctor invoices" description="Withheld from invoices paid to Indian bank accounts (Section 194J). Confirm the rate with your accountant." />
+          <div className="p-5">
+            <ActionForm action={saveSettingAction} submitLabel="Save TDS rate">
+              <input type="hidden" name="key" value="tds" />
+              <Field label="Rate (basis points, 1000 = 10%)" htmlFor="rate_bps" hint="Applies to invoices submitted after saving.">
+                <Input id="rate_bps" name="rate_bps" type="number" min={0} max={3000} defaultValue={tds.rate_bps ?? 1000} required />
               </Field>
             </ActionForm>
           </div>

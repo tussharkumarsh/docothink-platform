@@ -45,7 +45,13 @@ export default async function FinancePage() {
 
   return (
     <>
-      <PageHeader title="Finance & payouts" description="Ledger-based. Payout records never move money by themselves: transfers happen outside the platform and are recorded here with a reference." actions={<Link href="/api/statements" className="text-sm text-brand-700 hover:underline">Export full ledger (CSV)</Link>} />
+      <PageHeader title="Finance & payouts" description="Ledger-based. Payout records never move money by themselves: transfers happen outside the platform and are recorded here with a reference." actions={
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <Link href="/admin/finance/invoices" className="font-medium text-brand-700 hover:underline">Doctor invoices</Link>
+          <Link href="/api/tds-report" className="text-brand-700 hover:underline">TDS report (CSV)</Link>
+          <Link href="/api/statements" className="text-brand-700 hover:underline">Export full ledger (CSV)</Link>
+        </div>
+      } />
 
       {[...byCurrency].map(([currency, r]) => (
         <div key={currency} className="mb-4 grid gap-4 sm:grid-cols-4">
