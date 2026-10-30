@@ -47,6 +47,13 @@ export type DoctorDetail = DoctorCard & {
   booking_horizon_days: number;
   min_notice_minutes: number;
   approved_at: string | null;
+  special_interests: string[];
+  services: string[];
+  skills: string[];
+  awards: { title: string; organization?: string; year?: number }[];
+  memberships: { organization: string; role?: string; since?: number }[];
+  publications: { title: string; journal?: string; year?: number; url?: string }[];
+  practice_started_year: number | null;
 };
 
 const CARD_COLUMNS =
@@ -169,7 +176,7 @@ export async function getDoctorBySlug(slug: string): Promise<DoctorDetail | null
   const { data } = await createPublicClient()
     .from("doctor_profiles")
     .select(
-      `${CARD_COLUMNS}, bio, registration_number, registration_council, registration_country, education, experience, booking_horizon_days, min_notice_minutes, approved_at`,
+      `${CARD_COLUMNS}, bio, registration_number, registration_council, registration_country, education, experience, booking_horizon_days, min_notice_minutes, approved_at, special_interests, services, skills, awards, memberships, publications, practice_started_year`,
     )
     .eq("slug", slug)
     .eq("application_status", "approved")

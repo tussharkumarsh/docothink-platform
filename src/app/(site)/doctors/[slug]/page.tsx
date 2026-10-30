@@ -12,6 +12,7 @@ import { InitialsAvatar } from "@/components/ui/avatar";
 import { getDoctorReviews, getRatingDistribution } from "@/features/reviews/queries";
 import { RatingSummary, StarRow } from "@/features/reviews/components/rating-summary";
 import { ReviewList } from "@/features/reviews/components/review-list";
+import { ProfileSections } from "@/features/catalog/components/profile-sections";
 import { SlotPicker } from "@/features/catalog/components/slot-picker";
 import { isValidTimezone, supportedTimezones } from "@/lib/time/format";
 
@@ -78,6 +79,7 @@ export default async function DoctorPage({ params }: PageProps<"/doctors/[slug]"
                   <Badge tone="success"><BadgeCheck className="size-3" aria-hidden /> Registration verified</Badge>
                   {doctor.specialties.map((s) => <Badge key={s.slug} tone="info">{s.name}</Badge>)}
                   {doctor.years_experience != null && <Badge>{doctor.years_experience} years experience</Badge>}
+                  {doctor.practice_started_year != null && <Badge>Practising since {doctor.practice_started_year}</Badge>}
                   {doctor.is_demo && <Badge tone="warning">Demo profile</Badge>}
                 </div>
                 <dl className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
@@ -123,6 +125,8 @@ export default async function DoctorPage({ params }: PageProps<"/doctors/[slug]"
               </ul>
             </Card>
           )}
+
+          <ProfileSections doctor={doctor} />
 
           {distribution && doctor.rating_avg != null && (
             <Card id="reviews">
