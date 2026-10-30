@@ -10,20 +10,30 @@ import { formatMoney } from "@/lib/money";
 import { formatDateTime } from "@/lib/time/format";
 import { formatRating } from "@/features/catalog/discovery";
 import { ReviewList } from "@/features/reviews/components/review-list";
+import { profileCompleteness } from "@/features/doctor/kyc";
 
 export default async function DoctorDashboard() {
   const viewer = await requireApprovedDoctor();
   const supabase = await createClient();
-  const [upcoming, settings, { data: ledger }, { count: rules }, { data: profile }, { data: recentReviews }] = await Promise.all([
+  const [upcoming, settings, { data: ledger }, { count: rules }, { data: profile }, { data: recentReviews }, { data: privateDetails }] = await Promise.all([
     listAppointments({ scope: "upcoming", limit: 20 }),
     getPlatformSettings(),
     supabase.from("financial_ledger_entries").select("amount, currency, entry_type"),
     supabase.from("doctor_availability_rules").select("id", { count: "exact", head: true }).eq("is_active", true),
-    supabase.from("doctor_profiles").select("rating_avg, rating_count").eq("user_id", viewer.id).single(),
+    supabase.from("doctor_profiles").select("rating_avg, rating_count, education, experience, services, special_interests").eq("user_id", viewer.id).single(),
     // The public view shows comments only once approved, which is also what the doctor should see.
     supabase.from("public_doctor_reviews").select("id, rating, comment, reviewer_name, created_at").eq("doctor_id", viewer.id)
       .order("created_at", { ascending: false }).limit(5),
+    supabase.from("doctor_private_details").select("address_line1, city, postal_code, country, kyc_status").eq("doctor_id", viewer.id).maybeSingle(),
   ]);
+  const completeness = profileCompleteness({
+    education: (profile?.education as unknown[] | null)?.length ?? 0,
+    experience: (profile?.experience as unknown[] | null)?.length ?? 0,
+    services: profile?.services?.length ?? 0,
+    specialInterests: profile?.special_interests?.length ?? 0,
+    addressComplete: Boolean(privateDetails?.address_line1 && privateDetails.city && privateDetails.postal_code && privateDetails.country),
+    kycStatus: privateDetails?.kyc_status ?? "not_submitted",
+  });
   const balances = new Map<string, number>();
   for (const e of ledger ?? []) balances.set(e.currency, (balances.get(e.currency) ?? 0) + e.amount);
   const live = upcoming.filter((a) => (a.status === "confirmed" || a.status === "in_progress") && joinWindow(a.start_at, a.end_at, settings.consultation).open);
@@ -40,6 +50,23 @@ export default async function DoctorDashboard() {
           <div className="mt-2"><ButtonLink href={`/consult/${a.id}`} size="sm"><Video className="size-4" aria-hidden /> {a.status === "in_progress" ? "Rejoin" : "Start consultation"}</ButtonLink></div>
         </Alert>
       ))}
+      {completeness.done < completeness.total && (
+        <Card className="mb-6">
+          <CardHeader
+            title={`Profile ${completeness.done}/${completeness.total} complete`}
+            description="A complete profile helps patients choose you, and verified bank details are needed for settlements."
+          />
+          <ul className="flex flex-wrap gap-2 px-5 pb-5">
+            {completeness.missing.map((m) => (
+              <li key={m.key}>
+                <Link href={`/doctor/profile?tab=${m.tab}`} className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-900 hover:bg-amber-100">
+                  Add {m.label.toLowerCase()} →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Today" value={today.length} hint="appointments" />
         <Stat label="Upcoming" value={upcoming.length} />
