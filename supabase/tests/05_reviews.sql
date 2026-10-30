@@ -87,3 +87,14 @@ select tests.assert((select reviewer_name from public.public_doctor_reviews wher
 -- Demo flags exist and default to false.
 select tests.assert((select bool_and(not is_demo) from public.profiles), 'profiles.is_demo defaults false');
 select tests.assert((select bool_and(not is_demo) from public.doctor_profiles), 'doctor_profiles.is_demo defaults false');
+
+-- A reviews-only admin can be granted reviews.manage and moderate.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-4000-8000-000000000197', 'moderator@docothink.test', '{"full_name": "Review Moderator"}');
+update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-000000000197';
+insert into public.admin_permissions (user_id, permission) values ('00000000-0000-4000-8000-000000000197', 'reviews.manage');
+select tests.login('00000000-0000-4000-8000-000000000197');
+select public.moderate_review((select id from public.doctor_reviews where appointment_id = '00000000-0000-4000-8000-00000000a001'), 'approved');
+reset role;
+select tests.assert((select comment_status from public.doctor_reviews where appointment_id = '00000000-0000-4000-8000-00000000a001') = 'approved',
+  'reviews.manage admin can moderate');

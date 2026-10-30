@@ -78,5 +78,6 @@ export const ADMIN_PERMISSIONS = [
   "settings.manage",
   "clinical.read",
   "audit.read",
+  "reviews.manage",
 ] as const;
 export type AdminPermission = (typeof ADMIN_PERMISSIONS)[number];

@@ -211,3 +211,14 @@ export async function referralGrantAction(_: ActionResult, formData: FormData): 
   revalidatePath("/admin/patients", "layout");
   return ok("Referral access granted; the patient has been notified.");
 }
+
+export async function moderateReviewAction(formData: FormData) {
+  await requirePermission("reviews.manage");
+  const parsed = z.object({ review_id: uuid, status: z.enum(["approved", "hidden"]) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("moderate_review", { p_review: parsed.data.review_id, p_status: parsed.data.status });
+  if (error) console.error("moderate_review failed", error.code);
+  revalidatePath("/admin/reviews");
+  revalidateTag("doctors", "max");
+}

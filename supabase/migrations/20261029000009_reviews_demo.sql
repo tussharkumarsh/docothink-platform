@@ -11,6 +11,12 @@ alter table public.doctor_profiles add column is_demo boolean not null default f
 -- ---------------------------------------------------------------------------
 -- Reviews
 -- ---------------------------------------------------------------------------
+alter table public.admin_permissions drop constraint admin_permissions_permission_check;
+alter table public.admin_permissions add constraint admin_permissions_permission_check check (permission in (
+  '*', 'doctors.manage', 'patients.manage', 'appointments.manage', 'finance.manage',
+  'settings.manage', 'clinical.read', 'audit.read', 'reviews.manage'
+));
+
 alter table public.doctor_profiles
   add column rating_avg numeric(3, 2),
   add column rating_count integer not null default 0 check (rating_count >= 0);
