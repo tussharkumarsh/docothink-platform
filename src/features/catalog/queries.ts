@@ -149,7 +149,7 @@ export async function getFeaturedDoctors(): Promise<DoctorCard[]> {
   cacheLife("hours");
   cacheTag("doctors");
   const all = await searchDoctors({});
-  return all.slice(0, 4);
+  return all.slice(0, 3);
 }
 
 /**

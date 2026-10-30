@@ -198,7 +198,7 @@ export default async function HomePage() {
         <section className="bg-slate-50 px-4 py-24 sm:px-6">
           <div className="mx-auto max-w-6xl">
             <SectionHeading title="Verified doctors." description="Every doctor's registration and identity are checked before they can consult." />
-            <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {doctors.map((d) => (
                 <DoctorCard key={d.user_id} doctor={d} />
               ))}
