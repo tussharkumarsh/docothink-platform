@@ -88,7 +88,7 @@ export default async function DoctorsPage({ searchParams }: PageProps<"/doctors"
         Only verified, approved doctors are listed. Times are shown in <strong>{viewerTz}</strong>.
       </p>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[18rem_1fr]">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <Card className="h-fit p-5">
           <form className="space-y-4" role="search" aria-label="Filter doctors">
             <Field label="Doctor name" htmlFor="q">

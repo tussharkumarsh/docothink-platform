@@ -39,7 +39,7 @@ export function ConsultRoom(props: { appointmentId: string; selfId: string; role
 
   const hasCall = props.mode === "audio" || props.mode === "video";
   return (
-    <div className={hasCall ? "grid gap-4 lg:grid-cols-[1fr_22rem]" : ""}>
+    <div className={hasCall ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
       {hasCall && (
         <div className="h-[60vh] min-h-[22rem] overflow-hidden rounded-card">
           <CallPanel appointmentId={props.appointmentId} selfId={props.selfId} role={props.role} mode={props.mode as "audio" | "video"} iceServers={state.iceServers} />

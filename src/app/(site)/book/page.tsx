@@ -34,7 +34,7 @@ async function Booking({ searchParams }: { searchParams: PageProps<"/book">["sea
   const here = `/book?doctor=${encodeURIComponent(slug)}&mode=${mode}&start=${encodeURIComponent(start)}${tzParam ? `&tz=${encodeURIComponent(tzParam)}` : ""}`;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <Card>
         <CardHeader title="Your details" description="Step 2 of 3: tell the doctor why you're booking." />
         <div className="p-5">

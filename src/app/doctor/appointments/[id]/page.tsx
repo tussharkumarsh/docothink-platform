@@ -51,7 +51,7 @@ export default async function DoctorAppointmentPage({ params, searchParams }: Pa
       />
       {typeof sp.error === "string" && <Alert tone="danger" className="mb-4">{sp.error}</Alert>}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
           <Card>
             <CardHeader title="Reason for visit" />

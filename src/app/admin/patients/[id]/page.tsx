@@ -37,7 +37,7 @@ export default async function AdminPatientPage({ params, searchParams }: PagePro
   return (
     <>
       <PageHeader title={profile.full_name || profile.email} description={`${profile.email} · ${profile.phone ?? "no phone"} · ${profile.timezone}`} />
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
           <Card>
             <CardHeader title="Appointments" />

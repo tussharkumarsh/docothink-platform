@@ -25,7 +25,7 @@ export default async function MedicalProfilePage({ searchParams }: PageProps<"/p
         title="Medical profile"
         description="Shared only with doctors treating you. Save any section as a draft and finish later."
       />
-      <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
         <Card className="h-fit p-4">
           <p className="text-sm font-medium text-slate-900">{progress.percent}% complete</p>
           <div className="mt-2 h-2 rounded-full bg-slate-100" role="progressbar" aria-valuenow={progress.percent} aria-valuemin={0} aria-valuemax={100} aria-label="Profile completion">

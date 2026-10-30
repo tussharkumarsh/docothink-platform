@@ -74,7 +74,7 @@ export default async function PatientAppointmentPage({ params, searchParams }: P
         {typeof sp.payment_error === "string" && <Alert tone="danger">{sp.payment_error}</Alert>}
       </div>
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_20rem]">
+      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
           <Card>
             <CardHeader title="Appointment" />

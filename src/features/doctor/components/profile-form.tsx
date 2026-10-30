@@ -33,7 +33,7 @@ export function DoctorProfileForm({ doctor }: { doctor: DoctorProfileRow }) {
     <ActionForm action={updateDoctorProfileAction} submitLabel="Save profile" className="space-y-6">
       <fieldset className="grid gap-4 sm:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-slate-900">Public profile</legend>
-        <div className="grid grid-cols-[6rem_1fr] gap-3 sm:col-span-2">
+        <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 sm:col-span-2">
           <Field label="Title" htmlFor="title"><Input id="title" name="title" defaultValue={doctor.title} /></Field>
           <Field label="Name shown to patients" htmlFor="display_name" required><Input id="display_name" name="display_name" defaultValue={doctor.display_name} required /></Field>
         </div>

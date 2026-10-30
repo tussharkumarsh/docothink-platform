@@ -55,7 +55,7 @@ export default async function DoctorPage({ params }: PageProps<"/doctors/[slug]"
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <div className="grid gap-8 lg:grid-cols-[1fr_26rem]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="space-y-6">
           <Card className="p-6">
             <div className="flex flex-col gap-5 sm:flex-row">

@@ -34,7 +34,7 @@ export default async function ChangeRequestsPage() {
               doctor_profiles: { title: string; display_name: string } | null; patient_profiles: { profiles: { full_name: string } | null } | null;
             };
             return (
-              <Card key={r.id} className="grid gap-4 p-5 lg:grid-cols-[1fr_20rem]">
+              <Card key={r.id} className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
                 <div className="text-sm">
                   <p className="font-medium text-slate-900"><Link href={`/admin/appointments/${a.id}`} className="hover:underline">{a.reference}</Link> · {a.patient_profiles?.profiles?.full_name ?? "Patient"} with {a.doctor_profiles ? `${a.doctor_profiles.title} ${a.doctor_profiles.display_name}` : "doctor"} · {MODE_LABELS[a.mode]}</p>
                   <p className="mt-2"><span className="text-slate-500">Current:</span> {formatDateTime(a.start_at, tz)}</p>

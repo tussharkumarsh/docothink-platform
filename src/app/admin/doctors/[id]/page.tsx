@@ -54,7 +54,7 @@ export default async function AdminDoctorPage({ params }: PageProps<"/admin/doct
         description={<>{profile.email} · {d.timezone} · fees in {d.currency}</>}
         actions={<Badge tone={d.application_status === "approved" ? "success" : "info"}>{APPLICATION_STATUS_LABELS[d.application_status as DoctorApplicationStatus]}</Badge>}
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
           <Card>
             <CardHeader title="Professional details" action={d.application_status === "approved" ? <Link href={`/doctors/${d.slug}`} className="text-sm text-brand-700 hover:underline">Public profile</Link> : undefined} />

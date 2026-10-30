@@ -32,7 +32,7 @@ export default async function AdminAppointmentPage({ params }: PageProps<"/admin
   return (
     <>
       <PageHeader title={`Appointment ${appt.reference}`} actions={<StatusBadge status={appt.status} changeRequested={!!appt.pending_change} rescheduled={appt.reschedule_count > 0} />} />
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
           <Card>
             <CardHeader title="Details" />

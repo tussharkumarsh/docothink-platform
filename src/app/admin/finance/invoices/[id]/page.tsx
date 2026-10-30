@@ -37,7 +37,7 @@ export default async function AdminInvoicePage({ params }: PageProps<"/admin/fin
         <Link href="/admin/finance/invoices" className="text-sm text-brand-700 hover:underline">← Invoices</Link>
         <PrintButton />
       </div>
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <InvoiceDocument invoice={invoice} timezone={tz} />
         {open && (
           <div className="space-y-6 no-print">
