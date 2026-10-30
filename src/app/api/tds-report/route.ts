@@ -11,7 +11,12 @@ function csvCell(value: unknown): string {
 
 const isDate = (v: string | null): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-/** TDS withheld on paid invoices, for the accountant (deposit and Form 16A). Finance admins only; contains full PANs. */
+type TdsRow = {
+  invoice_number: string; paid_at: string; doctor_name: string; pan: string | null; currency: string;
+  gross_amount: number; tds_rate_bps: number; tds_amount: number; net_amount: number; transaction_reference: string | null;
+};
+
+/** TDS withheld on paid invoices, for the accountant (deposit and Form 16A). Finance admins only; full PANs; each export is audited. */
 export async function GET(request: NextRequest) {
   const viewer = await getViewer();
   if (!viewer) return NextResponse.json({ error: "unauthorised" }, { status: 401 });
@@ -20,33 +25,21 @@ export async function GET(request: NextRequest) {
   const from = request.nextUrl.searchParams.get("from");
   const to = request.nextUrl.searchParams.get("to");
   const supabase = await createClient();
-  let query = supabase
-    .from("doctor_payouts")
-    .select("invoice_number, paid_at, currency, gross_amount, tds_rate_bps, tds_amount, amount, transaction_reference, bank_snapshot, doctor_profiles(title, display_name)")
-    .eq("source", "invoice")
-    .eq("status", "paid")
-    .gt("tds_amount", 0)
-    .order("paid_at")
-    .limit(10000);
-  if (isDate(from)) query = query.gte("paid_at", `${from}T00:00:00Z`);
-  if (isDate(to)) query = query.lte("paid_at", `${to}T23:59:59Z`);
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc("tds_report", { p_from: isDate(from) ? from : null, p_to: isDate(to) ? to : null });
   if (error) return NextResponse.json({ error: "failed" }, { status: 500 });
 
   const header = ["invoice_number", "paid_at_utc", "doctor", "pan", "currency", "gross_minor", "tds_rate_percent", "tds_minor", "net_paid_minor", "transaction_reference"];
   const lines = [header.map(csvCell).join(",")].concat(
-    (data ?? []).map((p) => {
-      const d = p.doctor_profiles as unknown as { title: string; display_name: string } | null;
-      const snap = (p.bank_snapshot ?? {}) as { pan?: string | null };
-      return [p.invoice_number, p.paid_at, d ? `${d.title} ${d.display_name}` : "", snap.pan ?? "", p.currency, p.gross_amount, p.tds_rate_bps / 100, p.tds_amount, p.amount, p.transaction_reference]
+    ((data ?? []) as TdsRow[]).map((r) =>
+      [r.invoice_number, r.paid_at, r.doctor_name, r.pan, r.currency, r.gross_amount, r.tds_rate_bps / 100, r.tds_amount, r.net_amount, r.transaction_reference]
         .map(csvCell)
-        .join(",");
-    }),
+        .join(","),
+    ),
   );
   return new NextResponse(lines.join("\r\n"), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="docothink-tds-${from ?? "all"}-${to ?? "all"}.csv"`,
+      "Content-Disposition": `attachment; filename="docothink-tds-${isDate(from) ? from : "all"}-${isDate(to) ? to : "all"}.csv"`,
       "Cache-Control": "no-store",
     },
   });

@@ -114,4 +114,37 @@ select public.complete_refund(id, true, 'test_refund', null) from public.refunds
 select tests.login('00000000-0000-4000-8000-000000000101');
 select tests.assert(exists (select 1 from public.invoiceable_entries() where appointment_id = '00000000-0000-4000-8000-00000000b002' and entry_type = 'refund_reversal'),
   'late refund reversal is invoiceable');
+-- Deductions can't be cherry-picked away: every unsettled negative entry joins the next invoice automatically.
+create temp table inv4 as select * from public.submit_invoice(array['00000000-0000-4000-8000-00000000b001']::uuid[]);
+reset role;
+select tests.assert((select gross_amount from inv4) = 72000, 'refund deduction (−18,000) netted into the next invoice (90,000)');
+select tests.assert(exists (select 1 from public.payout_items pi join public.financial_ledger_entries l on l.id = pi.ledger_entry_id
+  where pi.payout_id = (select id from inv4) and l.entry_type = 'refund_reversal'), 'reversal is on the invoice');
+
+-- Invoices only move through invoice states: no on_hold / failed via the generic payout control.
+select tests.login('00000000-0000-4000-8000-000000000001');
+select tests.expect_error(format('select public.update_payout_status(%L, %L)', (select id from inv4), 'on_hold'), 'INVALID_TRANSITION');
+select tests.expect_error(format('select public.update_payout_status(%L, %L)', (select id from inv4), 'failed'), 'INVALID_TRANSITION');
+reset role;
+
+-- Bank snapshot: never readable directly; masked for the doctor and finance; full numbers only via audited RPCs.
+select tests.login('00000000-0000-4000-8000-000000000001');
+select tests.expect_error('select bank_snapshot from public.doctor_payouts', 'permission denied');
+select tests.assert((select account_number from public.reveal_invoice_bank((select id from inv1))) = '123456789012',
+  'reveal returns the account the invoice was raised with, not the current one');
+select tests.assert((select pan from public.tds_report(null, null) where invoice_number = (select invoice_number from inv3)) = 'ABCDE1234F',
+  'TDS report has the PAN');
+reset role;
+select tests.assert(exists (select 1 from public.audit_logs where action = 'invoice_bank.reveal'), 'invoice bank reveal is audited');
+select tests.assert(exists (select 1 from public.audit_logs where action = 'tds.export'), 'TDS export is audited');
+select tests.login('00000000-0000-4000-8000-000000000101');
+select tests.expect_error('select bank_snapshot from public.doctor_payouts', 'permission denied');
+select tests.assert((select public.invoice_bank_masked((select id from inv1)) ->> 'account_masked') = '••••9012', 'doctor sees the masked snapshot');
+reset role;
+select tests.login('00000000-0000-4000-8000-000000000102');
+select tests.expect_error(format('select public.invoice_bank_masked(%L)', (select id from inv1)), 'FORBIDDEN');
+reset role;
+select tests.login('00000000-0000-4000-8000-000000000195');
+select tests.expect_error(format('select * from public.reveal_invoice_bank(%L)', (select id from inv1)), 'FORBIDDEN');
+select tests.expect_error('select * from public.tds_report(null, null)', 'FORBIDDEN');
 reset role;

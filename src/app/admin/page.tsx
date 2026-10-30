@@ -26,7 +26,7 @@ export default async function AdminOverview({ searchParams }: PageProps<"/admin"
     count(supabase.from("appointment_change_requests").select("id", { count: "exact", head: true }).eq("status", "pending")),
     supabase.from("appointments").select("start_at").in("status", ["confirmed", "in_progress", "completed"]).gte("start_at", new Date(now.getTime() - 36e5 * 36).toISOString()).lte("start_at", new Date(now.getTime() + 36e5 * 36).toISOString()),
     hasPermission(viewer, "finance.manage") ? supabase.from("financial_ledger_entries").select("currency, gross_amount, commission_amount, entry_type") : Promise.resolve({ data: [] }),
-    hasPermission(viewer, "finance.manage") ? supabase.from("doctor_payouts").select("currency, amount, status").neq("status", "paid").neq("status", "failed") : Promise.resolve({ data: [] }),
+    hasPermission(viewer, "finance.manage") ? supabase.from("doctor_payouts").select("currency, amount, status").not("status", "in", "(paid,failed,cancelled)") : Promise.resolve({ data: [] }),
     hasPermission(viewer, "audit.read") ? supabase.from("audit_logs").select("id, action, entity_type, created_at, actor_role").order("created_at", { ascending: false }).limit(10) : Promise.resolve({ data: [] }),
   ]);
   const today = (todayRows.data ?? []).filter((a) => fmt.format(new Date(a.start_at)) === fmt.format(now)).length;

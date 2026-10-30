@@ -105,10 +105,19 @@ begin
     and l.entry_type in ('consultation_earning', 'refund_reversal')
     and not exists (select 1 from public.payout_items pi where pi.ledger_entry_id = l.id);
 
-  select count(distinct currency), min(currency), sum(amount) into v_currencies, v_currency, v_gross from invoice_entries;
+  select count(distinct currency), min(currency) into v_currencies, v_currency from invoice_entries;
   if v_currencies > 1 then
     raise exception 'MIXED_CURRENCY' using errcode = 'P0001';
   end if;
+  -- Deductions can't be left out: every unsettled refund reversal or adjustment in this currency is
+  -- netted into the invoice, whether or not its appointment was selected.
+  insert into invoice_entries
+  select l.id, l.amount, l.currency::text from public.financial_ledger_entries l
+  where l.doctor_id = auth.uid() and l.currency = v_currency
+    and l.entry_type in ('refund_reversal', 'adjustment')
+    and not exists (select 1 from public.payout_items pi where pi.ledger_entry_id = l.id)
+    and not exists (select 1 from invoice_entries e where e.id = l.id);
+  select sum(amount) into v_gross from invoice_entries;
   if coalesce(v_gross, 0) <= 0 then
     raise exception 'NOTHING_TO_PAY' using errcode = 'P0001';
   end if;
@@ -193,3 +202,158 @@ revoke execute on function public.invoiceable_entries(), public.submit_invoice(u
   public.withdraw_invoice(uuid), public.reject_invoice(uuid, text) from public, anon;
 grant execute on function public.invoiceable_entries(), public.submit_invoice(uuid[]),
   public.withdraw_invoice(uuid), public.reject_invoice(uuid, text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Invoices move only through invoice states: on_hold / processing / failed would strand them outside
+-- the invoice queue or reject them without a reason, so those go through reject_invoice() instead.
+-- (Same body as 20261029000006_rpcs.sql plus the source guard.)
+-- ---------------------------------------------------------------------------
+create or replace function public.update_payout_status(
+  p_payout uuid,
+  p_status public.payout_status,
+  p_reference text default null,
+  p_method text default null,
+  p_notes text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_p public.doctor_payouts;
+  v_allowed boolean;
+begin
+  if not public.has_permission('finance.manage') then
+    raise exception 'FORBIDDEN' using errcode = '42501';
+  end if;
+  select * into v_p from public.doctor_payouts where id = p_payout for update;
+  if not found then
+    raise exception 'NOT_FOUND' using errcode = 'P0001';
+  end if;
+  if v_p.source = 'invoice' and p_status::text not in ('under_review', 'approved', 'paid') then
+    raise exception 'INVALID_TRANSITION: invoices are rejected with reject_invoice()' using errcode = 'P0001';
+  end if;
+  v_allowed := (v_p.status::text, p_status::text) in (
+    ('pending', 'under_review'), ('pending', 'approved'), ('pending', 'on_hold'),
+    ('under_review', 'approved'), ('under_review', 'on_hold'),
+    ('on_hold', 'under_review'), ('on_hold', 'approved'), ('on_hold', 'failed'),
+    ('approved', 'processing'), ('approved', 'paid'), ('approved', 'on_hold'),
+    ('processing', 'paid'), ('processing', 'failed'),
+    ('pending', 'failed'), ('under_review', 'failed')
+  );
+  if not v_allowed then
+    raise exception 'INVALID_TRANSITION: % -> %', v_p.status, p_status using errcode = 'P0001';
+  end if;
+  if p_status = 'paid' and coalesce(trim(p_reference), '') = '' then
+    raise exception 'TRANSACTION_REFERENCE_REQUIRED' using errcode = 'P0001';
+  end if;
+  update public.doctor_payouts
+  set status = p_status,
+      transaction_reference = coalesce(nullif(trim(p_reference), ''), transaction_reference),
+      payout_method = coalesce(nullif(trim(p_method), ''), payout_method),
+      notes = coalesce(nullif(trim(p_notes), ''), notes),
+      approved_by = case when p_status = 'approved' then auth.uid() else approved_by end,
+      approved_at = case when p_status = 'approved' then now() else approved_at end,
+      paid_at = case when p_status = 'paid' then now() else paid_at end
+  where id = p_payout;
+  if p_status = 'paid' then
+    insert into public.financial_ledger_entries (doctor_id, entry_type, currency, amount, payout_id, description, created_by)
+    values (v_p.doctor_id, 'payout', v_p.currency, -v_p.amount, v_p.id,
+            'Payout ' || coalesce(nullif(trim(p_reference), ''), v_p.transaction_reference), auth.uid());
+  elsif p_status = 'failed' then
+    -- Release the entries so a later settlement can include them again.
+    delete from public.payout_items where payout_id = p_payout;
+  end if;
+  perform public.enqueue_notification(v_p.doctor_id, 'payout_' || p_status::text,
+    'payout:' || p_payout::text || ':' || p_status::text,
+    jsonb_build_object('amount', v_p.amount, 'currency', v_p.currency, 'status', p_status),
+    'Payout ' || replace(p_status::text, '_', ' '), null, '/doctor/earnings');
+  perform public.audit('payout.' || p_status::text, 'doctor_payout', p_payout::text,
+    jsonb_build_object('amount', v_p.amount, 'currency', v_p.currency));
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Bank snapshot: full account number / PAN / tax id are never readable directly. The doctor and finance
+-- get a masked copy; finance gets full numbers only through audited functions (as with Part 1's reveal).
+-- ---------------------------------------------------------------------------
+revoke select on public.doctor_payouts from authenticated;
+grant select (id, batch_id, doctor_id, currency, amount, status, payout_method, transaction_reference, notes,
+  approved_by, approved_at, paid_at, created_by, created_at, updated_at, source, invoice_number, gross_amount,
+  tds_rate_bps, tds_amount, rejection_reason, submitted_at) on public.doctor_payouts to authenticated;
+
+create function public.invoice_bank_masked(p_payout uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_p public.doctor_payouts;
+  s jsonb;
+begin
+  select * into v_p from public.doctor_payouts where id = p_payout and source = 'invoice';
+  if not found or not (v_p.doctor_id = auth.uid() or public.has_permission('finance.manage')) then
+    raise exception 'FORBIDDEN' using errcode = '42501';
+  end if;
+  s := coalesce(v_p.bank_snapshot, '{}'::jsonb);
+  return (s - 'account_number' - 'routing_number' - 'pan' - 'tax_id') || jsonb_strip_nulls(jsonb_build_object(
+    'account_masked', case when s ->> 'account_number' is not null then '••••' || right(s ->> 'account_number', 4) end,
+    'routing_masked', case when s ->> 'routing_number' is not null then '•••••' || right(s ->> 'routing_number', 4) end,
+    'pan_masked', case when s ->> 'pan' is not null then left(s ->> 'pan', 2) || '••••' || right(s ->> 'pan', 2) end,
+    'tax_id_masked', case when s ->> 'tax_id' is not null then '•••••' || right(s ->> 'tax_id', 4) end));
+end;
+$$;
+
+-- The account to pay is the one the invoice was raised (and verified) with, not whatever is current.
+create function public.reveal_invoice_bank(p_payout uuid)
+returns table (account_holder_name text, bank_name text, account_number text, ifsc text, sort_code text,
+  routing_number text, account_type text, pan text, tax_id text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  s jsonb;
+begin
+  if not public.has_permission('finance.manage') then
+    raise exception 'FORBIDDEN' using errcode = '42501';
+  end if;
+  select bank_snapshot into s from public.doctor_payouts where id = p_payout and source = 'invoice';
+  if not found then
+    raise exception 'NOT_FOUND' using errcode = 'P0001';
+  end if;
+  perform public.audit('invoice_bank.reveal', 'doctor_payout', p_payout::text, '{}'::jsonb);
+  return query select s ->> 'account_holder_name', s ->> 'bank_name', s ->> 'account_number', s ->> 'ifsc', s ->> 'sort_code',
+    s ->> 'routing_number', s ->> 'account_type', s ->> 'pan', s ->> 'tax_id';
+end;
+$$;
+
+create function public.tds_report(p_from date, p_to date)
+returns table (invoice_number text, paid_at timestamptz, doctor_name text, pan text, currency text, gross_amount bigint,
+  tds_rate_bps integer, tds_amount bigint, net_amount bigint, transaction_reference text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.has_permission('finance.manage') then
+    raise exception 'FORBIDDEN' using errcode = '42501';
+  end if;
+  perform public.audit('tds.export', 'report', 'tds', jsonb_build_object('from', p_from, 'to', p_to));
+  return query
+  select p.invoice_number, p.paid_at, trim(d.title || ' ' || d.display_name), p.bank_snapshot ->> 'pan', p.currency::text,
+         p.gross_amount, p.tds_rate_bps, p.tds_amount, p.amount, p.transaction_reference
+  from public.doctor_payouts p
+  join public.doctor_profiles d on d.user_id = p.doctor_id
+  where p.source = 'invoice' and p.status = 'paid' and p.tds_amount > 0
+    and (p_from is null or p.paid_at >= p_from::timestamptz)
+    and (p_to is null or p.paid_at < (p_to + 1)::timestamptz)
+  order by p.paid_at;
+end;
+$$;
+
+revoke execute on function public.invoice_bank_masked(uuid), public.reveal_invoice_bank(uuid), public.tds_report(date, date) from public, anon;
+grant execute on function public.invoice_bank_masked(uuid), public.reveal_invoice_bank(uuid), public.tds_report(date, date) to authenticated;

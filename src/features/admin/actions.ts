@@ -279,3 +279,20 @@ export async function rejectInvoiceAction(_: ActionResult, formData: FormData): 
   revalidatePath("/admin/finance", "layout");
   return ok("Invoice rejected. The consultations are released and the doctor has been notified.");
 }
+
+export type RevealedInvoiceBank = {
+  account_holder_name: string | null; bank_name: string | null; account_number: string | null; ifsc: string | null;
+  sort_code: string | null; routing_number: string | null; account_type: string | null; pan: string | null; tax_id: string | null;
+};
+
+/** Full details of the account an invoice was raised with (the one to pay). Audited in SQL; returned only in this response. */
+export async function revealInvoiceBankAction(_: ActionResult<RevealedInvoiceBank>, formData: FormData): Promise<ActionResult<RevealedInvoiceBank>> {
+  await requirePermission("finance.manage");
+  const id = uuid.safeParse(formData.get("payout_id"));
+  if (!id.success) return { ok: false, error: "Unknown invoice." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reveal_invoice_bank", { p_payout: id.data });
+  if (error) return { ok: false, error: friendlyError(error) };
+  const row = (data as RevealedInvoiceBank[] | null)?.[0];
+  return row ? { ok: true, data: row } : { ok: false, error: "No bank details on this invoice." };
+}

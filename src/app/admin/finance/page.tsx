@@ -25,7 +25,7 @@ export default async function FinancePage() {
   const todayLocal = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
   const [ledger, { data: payouts }, { data: payments }, { data: refunds }, { data: doctors }, { data: platformRule }] = await Promise.all([
     getLedger({ limit: 5000 }),
-    supabase.from("doctor_payouts").select("id, doctor_id, amount, currency, status, transaction_reference, payout_method, notes, created_at, paid_at, payout_batches(settlement_date), doctor_profiles(title, display_name)").order("created_at", { ascending: false }).limit(100),
+    supabase.from("doctor_payouts").select("id, doctor_id, amount, currency, status, transaction_reference, payout_method, notes, created_at, paid_at, payout_batches(settlement_date), doctor_profiles(title, display_name)").eq("source", "batch").order("created_at", { ascending: false }).limit(100),
     supabase.from("payment_records").select("id, appointment_id, purpose, provider, amount, currency, status, succeeded_at, created_at").order("created_at", { ascending: false }).limit(50),
     supabase.from("refunds").select("id, appointment_id, amount, currency, status, reason, created_at").order("created_at", { ascending: false }).limit(50),
     supabase.from("doctor_profiles").select("user_id, title, display_name").eq("application_status", "approved").order("display_name"),

@@ -23,7 +23,8 @@ export type InvoiceData = {
   gross_amount: number;
   tds_rate_bps: number;
   tds_amount: number;
-  bank_snapshot: Record<string, string | null> | null;
+  /** Masked snapshot: account_masked, pan_masked, routing_masked, tax_id_masked plus non-secret fields. */
+  bank: Record<string, string | null>;
   rejection_reason: string | null;
   transaction_reference: string | null;
   payout_method: string | null;
@@ -41,7 +42,7 @@ export async function getInvoice(id: string): Promise<InvoiceData | null> {
   const { data: p } = await supabase
     .from("doctor_payouts")
     .select(
-      `id, doctor_id, invoice_number, status, currency, amount, gross_amount, tds_rate_bps, tds_amount, bank_snapshot, rejection_reason,
+      `id, doctor_id, invoice_number, status, currency, amount, gross_amount, tds_rate_bps, tds_amount, rejection_reason,
        transaction_reference, payout_method, submitted_at, approved_at, paid_at, source,
        doctor_profiles(title, display_name, registration_number, registration_council)`,
     )
@@ -50,12 +51,14 @@ export async function getInvoice(id: string): Promise<InvoiceData | null> {
     .maybeSingle();
   if (!p) return null;
 
-  const [{ data: items }, { data: billing }] = await Promise.all([
+  const [{ data: items }, { data: billing }, { data: bank }] = await Promise.all([
     supabase
       .from("payout_items")
       .select("financial_ledger_entries(id, entry_type, amount, gross_amount, commission_amount, appointments(reference, start_at, mode, patient_profiles(profiles(full_name))))")
       .eq("payout_id", id),
     supabase.from("platform_settings").select("value").eq("key", "billing").maybeSingle(),
+    // Masked copy of the bank details the invoice was raised with (full numbers only via audited reveal).
+    supabase.rpc("invoice_bank_masked", { p_payout: id }),
   ]);
 
   type RawLine = {
@@ -79,7 +82,8 @@ export async function getInvoice(id: string): Promise<InvoiceData | null> {
     .sort((a, b) => (a.start_at ?? "").localeCompare(b.start_at ?? "") || a.ledger_entry_id - b.ledger_entry_id);
 
   return {
-    ...(p as unknown as Omit<InvoiceData, "doctor" | "lines" | "billing">),
+    ...(p as unknown as Omit<InvoiceData, "doctor" | "lines" | "billing" | "bank">),
+    bank: (bank ?? {}) as Record<string, string | null>,
     gross_amount: p.gross_amount ?? p.amount,
     doctor: (p.doctor_profiles as unknown as InvoiceData["doctor"]) ?? null,
     lines,

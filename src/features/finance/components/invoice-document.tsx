@@ -1,7 +1,7 @@
 import { Badge, Card } from "@/components/ui";
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/time/format";
-import { INVOICE_STATUS, maskAccount, maskPan } from "../invoice";
+import { INVOICE_STATUS } from "../invoice";
 import type { InvoiceData } from "../invoice-queries";
 
 /** "Emily Carter" → "E. C." — invoices never carry patients' full names. */
@@ -14,7 +14,7 @@ function initials(name: string | null): string {
 /** Printable settlement invoice, shared by the doctor and admin views. Bank and tax numbers are masked. */
 export function InvoiceDocument({ invoice, timezone }: { invoice: InvoiceData; timezone: string }) {
   const st = INVOICE_STATUS[invoice.status] ?? { label: invoice.status, tone: "neutral" as const };
-  const b = invoice.bank_snapshot ?? {};
+  const b = invoice.bank;
   const address = [b.address_line1, b.address_line2, b.city, b.region, b.postal_code, b.country].filter(Boolean).join(", ");
   const billing = invoice.billing;
   const money = (v: number) => formatMoney(v, invoice.currency);
@@ -39,7 +39,7 @@ export function InvoiceDocument({ invoice, timezone }: { invoice: InvoiceData; t
           <p className="mt-2 font-medium text-slate-900">{invoice.doctor ? `${invoice.doctor.title} ${invoice.doctor.display_name}` : "Doctor"}</p>
           {address && <p className="text-slate-600">{address}</p>}
           {invoice.doctor?.registration_number && <p className="text-slate-600">Reg. {invoice.doctor.registration_number}{invoice.doctor.registration_council ? `, ${invoice.doctor.registration_council}` : ""}</p>}
-          {b.pan && <p className="text-slate-600">PAN {maskPan(b.pan)}</p>}
+          {b.pan_masked && <p className="text-slate-600">PAN {b.pan_masked}</p>}
           {b.gstin && <p className="text-slate-600">GSTIN {b.gstin}</p>}
         </section>
         <section>
@@ -91,8 +91,8 @@ export function InvoiceDocument({ invoice, timezone }: { invoice: InvoiceData; t
       <section className="mt-8 rounded-xl bg-slate-50 p-4 text-sm print:bg-transparent print:p-0">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Payment</h2>
         <p className="mt-2 text-slate-700">
-          {b.account_holder_name ?? "—"} · {b.bank_name ?? "—"} · Account {maskAccount(b.account_number)}
-          {b.ifsc ? ` · IFSC ${b.ifsc}` : ""}{b.sort_code ? ` · Sort code ${b.sort_code}` : ""}{b.routing_number ? ` · Routing ${maskAccount(b.routing_number)}` : ""}
+          {b.account_holder_name ?? "—"} · {b.bank_name ?? "—"} · Account {b.account_masked ?? "—"}
+          {b.ifsc ? ` · IFSC ${b.ifsc}` : ""}{b.sort_code ? ` · Sort code ${b.sort_code}` : ""}{b.routing_masked ? ` · Routing ${b.routing_masked}` : ""}
         </p>
         {invoice.status === "paid" && invoice.transaction_reference && (
           <p className="mt-1 font-medium text-emerald-800">Paid{invoice.payout_method ? ` by ${invoice.payout_method}` : ""} · Reference {invoice.transaction_reference}</p>
