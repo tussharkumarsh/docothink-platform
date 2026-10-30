@@ -19,5 +19,8 @@ describe("friendlyError for bank and KYC details", () => {
     expect(friendlyError({ message: "INVALID_ACCOUNT_NUMBER" })).toBe("Enter a valid account number for the selected country.");
     expect(friendlyError({ message: "MISMATCHED_FIELDS" })).toBe("Some details don't belong to the selected bank country. Clear them and try again.");
     expect(friendlyError({ message: "NOT_PENDING" })).toBe("These details aren't waiting for review.");
+    expect(friendlyError({ message: "STALE_DETAILS" })).toBe(
+      "The doctor changed these details after you opened the page. Reload and check them again before deciding.",
+    );
   });
 });

@@ -131,6 +131,9 @@ begin
     when 'GB' then v_new.sort_code is not null
     when 'US' then v_new.routing_number is not null and v_new.account_type is not null and v_new.tax_id is not null
     else false end;
+  -- After "changes requested", saving complete details resubmits them even if nothing changed
+  -- (e.g. the doctor only uploaded a clearer bank proof).
+  v_changed := v_changed or (v_old.kyc_status = 'changes_requested' and v_complete);
 
   insert into public.doctor_private_details as d (
     doctor_id, address_line1, address_line2, city, region, postal_code, country,
@@ -164,7 +167,9 @@ begin
 end;
 $$;
 
-create function public.review_private_details(p_doctor uuid, p_decision text, p_note text)
+-- p_expected_submitted_at is the submission the admin reviewed; details changed since then are refused
+-- (an attacker editing bank details while the admin has the page open must not get them verified).
+create function public.review_private_details(p_doctor uuid, p_decision text, p_note text, p_expected_submitted_at timestamptz)
 returns void
 language plpgsql
 security definer
@@ -172,6 +177,7 @@ set search_path = ''
 as $$
 declare
   v_note text := nullif(trim(p_note), '');
+  v_row public.doctor_private_details;
 begin
   if not public.has_permission('finance.manage') then
     raise exception 'FORBIDDEN' using errcode = '42501';
@@ -182,15 +188,19 @@ begin
   if p_decision = 'request_changes' and v_note is null then
     raise exception 'NOTE_REQUIRED' using errcode = 'P0001';
   end if;
+  select * into v_row from public.doctor_private_details where doctor_id = p_doctor for update;
+  if not found or v_row.kyc_status <> 'pending' then
+    raise exception 'NOT_PENDING' using errcode = 'P0001';
+  end if;
+  if v_row.submitted_at is distinct from p_expected_submitted_at then
+    raise exception 'STALE_DETAILS' using errcode = 'P0001';
+  end if;
   update public.doctor_private_details
   set kyc_status = case when p_decision = 'verify' then 'verified' else 'changes_requested' end::public.kyc_status,
       kyc_note = case when p_decision = 'verify' then null else left(v_note, 1000) end,
       verified_by = case when p_decision = 'verify' then auth.uid() end,
       verified_at = case when p_decision = 'verify' then now() end
-  where doctor_id = p_doctor and kyc_status = 'pending';
-  if not found then
-    raise exception 'NOT_PENDING' using errcode = 'P0001';
-  end if;
+  where doctor_id = p_doctor;
   perform public.audit('kyc.review', 'doctor', p_doctor::text, jsonb_build_object('decision', p_decision));
   perform public.enqueue_notification(p_doctor, null, 'kyc-review:' || gen_random_uuid()::text, '{}'::jsonb,
     case when p_decision = 'verify' then 'Bank details verified' else 'Changes needed to your bank details' end,
@@ -242,8 +252,17 @@ create policy doctor_private_details_own on public.doctor_private_details for se
   using (doctor_id = auth.uid());
 grant select on public.admin_doctor_bank_masked to authenticated;
 
-revoke execute on function public.save_private_details(jsonb), public.review_private_details(uuid, text, text),
+revoke execute on function public.save_private_details(jsonb), public.review_private_details(uuid, text, text, timestamptz),
   public.reveal_bank_details(uuid) from public, anon;
-grant execute on function public.save_private_details(jsonb), public.review_private_details(uuid, text, text),
+grant execute on function public.save_private_details(jsonb), public.review_private_details(uuid, text, text, timestamptz),
   public.reveal_bank_details(uuid) to authenticated;
 grant execute on function public.text_items_ok(text[], integer, integer) to anon, authenticated;
+
+-- Bank proof shows the full account number: among admins, only finance staff may see it.
+-- (Compared as text: an enum value added in this migration can't be used as a literal in the same transaction.)
+drop policy doctor_credentials_select on public.doctor_credentials;
+create policy doctor_credentials_select on public.doctor_credentials for select to authenticated using (
+  doctor_id = auth.uid()
+  or (kind::text <> 'bank_proof' and public.has_permission('doctors.manage'))
+  or (kind::text = 'bank_proof' and public.has_permission('finance.manage'))
+);

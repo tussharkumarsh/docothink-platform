@@ -71,6 +71,7 @@ const MESSAGES: Record<string, string> = {
   INVALID_COUNTRY: "Use a two-letter country code, e.g. IN.",
   MISMATCHED_FIELDS: "Some details don't belong to the selected bank country. Clear them and try again.",
   NOT_PENDING: "These details aren't waiting for review.",
+  STALE_DETAILS: "The doctor changed these details after you opened the page. Reload and check them again before deciding.",
 };
 
 const INCOMPLETE_FIELDS: Record<string, string> = {

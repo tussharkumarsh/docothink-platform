@@ -49,6 +49,7 @@ export function BankKycPanel({ doctorId, bank, timezone }: { doctorId: string; b
             {bank.kyc_status === "pending" && (
               <ActionForm action={reviewKycAction} submitLabel="Save decision" className="space-y-3 border-t border-slate-100 pt-4">
                 <input type="hidden" name="doctor_id" value={doctorId} />
+                <input type="hidden" name="submitted_at" value={bank.submitted_at ?? ""} />
                 <Field label="Decision" htmlFor="decision">
                   <Select id="decision" name="decision" defaultValue="verify">
                     <option value="verify">Verify: details match the bank proof</option>

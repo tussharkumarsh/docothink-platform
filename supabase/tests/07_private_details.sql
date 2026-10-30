@@ -20,8 +20,9 @@ reset role;
 
 -- Admin verifies; an address-only change keeps verification, a bank change resets it.
 select tests.login('00000000-0000-4000-8000-000000000001');
-select public.review_private_details('00000000-0000-4000-8000-000000000101', 'verify', null);
-select tests.expect_error($$select public.review_private_details('00000000-0000-4000-8000-000000000102', 'request_changes', '  ')$$, 'NOTE_REQUIRED');
+select public.review_private_details('00000000-0000-4000-8000-000000000101', 'verify', null,
+  (select submitted_at from public.admin_doctor_bank_masked where doctor_id = '00000000-0000-4000-8000-000000000101'));
+select tests.expect_error($$select public.review_private_details('00000000-0000-4000-8000-000000000102', 'request_changes', '  ', now())$$, 'NOTE_REQUIRED');
 reset role;
 select tests.assert((select kyc_status from public.doctor_private_details where doctor_id = '00000000-0000-4000-8000-000000000101') = 'verified', 'verified');
 select tests.login('00000000-0000-4000-8000-000000000101');
@@ -57,7 +58,7 @@ insert into public.admin_permissions (user_id, permission) values ('00000000-000
 select tests.login('00000000-0000-4000-8000-000000000196');
 select tests.assert(not exists (select 1 from public.admin_doctor_bank_masked), 'non-finance admin sees no bank details');
 select tests.expect_error($$select * from public.reveal_bank_details('00000000-0000-4000-8000-000000000101')$$, 'FORBIDDEN');
-select tests.expect_error($$select public.review_private_details('00000000-0000-4000-8000-000000000101', 'verify', null)$$, 'FORBIDDEN');
+select tests.expect_error($$select public.review_private_details('00000000-0000-4000-8000-000000000101', 'verify', null, now())$$, 'FORBIDDEN');
 reset role;
 
 -- Finance admin: masked by default, full values only via audited reveal.
@@ -78,3 +79,34 @@ select tests.expect_error($$update public.doctor_profiles set services = (select
   where user_id = '00000000-0000-4000-8000-000000000101'$$, 'check');
 select tests.assert(exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'credential_kind' and e.enumlabel = 'bank_proof'),
   'bank_proof credential kind exists');
+
+-- Review is tied to the version the admin looked at: details changed since then cannot be verified.
+select tests.login('00000000-0000-4000-8000-000000000001');
+select tests.expect_error($$select public.review_private_details('00000000-0000-4000-8000-000000000101', 'verify', null, now() - interval '1 day')$$, 'STALE_DETAILS');
+reset role;
+
+-- After "changes requested", re-sending the same complete details puts them back in the queue.
+select tests.login('00000000-0000-4000-8000-000000000001');
+select public.review_private_details('00000000-0000-4000-8000-000000000102', 'request_changes', 'Please upload a clearer cheque',
+  (select submitted_at from public.admin_doctor_bank_masked where doctor_id = '00000000-0000-4000-8000-000000000102'));
+reset role;
+select tests.login('00000000-0000-4000-8000-000000000102');
+select tests.assert(public.save_private_details('{"bank_country": "GB", "account_holder_name": "J Clarke", "bank_name": "Barclays", "account_number": "12345678", "sort_code": "123456"}') = 'pending',
+  'unchanged details can be resubmitted after changes were requested');
+reset role;
+
+-- Bank proof shows the full account number, so among admins only finance can see it.
+insert into public.doctor_credentials (doctor_id, kind, storage_path, file_name, mime_type, size_bytes)
+values ('00000000-0000-4000-8000-000000000101', 'bank_proof', '00000000-0000-4000-8000-000000000101/cheque.pdf', 'cheque.pdf', 'application/pdf', 1000);
+insert into public.doctor_credentials (doctor_id, kind, storage_path, file_name, mime_type, size_bytes)
+values ('00000000-0000-4000-8000-000000000101', 'medical_degree', '00000000-0000-4000-8000-000000000101/degree.pdf', 'degree.pdf', 'application/pdf', 1000);
+select tests.login('00000000-0000-4000-8000-000000000196');
+select tests.assert(not exists (select 1 from public.doctor_credentials where kind = 'bank_proof'), 'doctors-only admin cannot see bank proof');
+select tests.assert(exists (select 1 from public.doctor_credentials where kind = 'medical_degree'), 'doctors-only admin still sees other credentials');
+reset role;
+select tests.login('00000000-0000-4000-8000-000000000001');
+select tests.assert(exists (select 1 from public.doctor_credentials where kind = 'bank_proof'), 'finance admin sees bank proof');
+reset role;
+select tests.login('00000000-0000-4000-8000-000000000101');
+select tests.assert(exists (select 1 from public.doctor_credentials where kind = 'bank_proof'), 'doctor sees own bank proof');
+reset role;

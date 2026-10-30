@@ -226,10 +226,21 @@ export async function moderateReviewAction(formData: FormData) {
 export async function reviewKycAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
   await requirePermission("finance.manage");
   const parsed = z
-    .object({ doctor_id: uuid, decision: z.enum(["verify", "request_changes"]), note: z.string().trim().max(1000).optional() })
+    .object({
+      doctor_id: uuid,
+      decision: z.enum(["verify", "request_changes"]),
+      note: z.string().trim().max(1000).optional(),
+      // The submission the admin was looking at; the database refuses if the doctor changed it since.
+      submitted_at: z.string().min(1),
+    })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: "Choose a decision." };
-  const failed = await rpc("review_private_details", { p_doctor: parsed.data.doctor_id, p_decision: parsed.data.decision, p_note: parsed.data.note || null });
+  const failed = await rpc("review_private_details", {
+    p_doctor: parsed.data.doctor_id,
+    p_decision: parsed.data.decision,
+    p_note: parsed.data.note || null,
+    p_expected_submitted_at: parsed.data.submitted_at,
+  });
   if (failed) return failed;
   revalidatePath(`/admin/doctors/${parsed.data.doctor_id}`);
   return ok(parsed.data.decision === "verify" ? "Bank details verified. The doctor has been notified." : "Changes requested. The doctor has been notified.");
