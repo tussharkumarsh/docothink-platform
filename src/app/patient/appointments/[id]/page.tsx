@@ -20,6 +20,7 @@ import {
 import { paymentsConfigured, testPaymentsEnabled } from "@/lib/payments";
 import { ReviewForm } from "@/features/reviews/components/review-form";
 import { AddToCalendar } from "@/features/appointments/components/add-to-calendar";
+import { DeviceCheck } from "@/features/consultation/components/device-check";
 import { MODE_LABELS, type ConsultationMode } from "@/lib/domain";
 import { formatMoney, patientRefundPercent } from "@/lib/money";
 import { formatDateTime } from "@/lib/time/format";
@@ -90,6 +91,12 @@ export default async function PatientAppointmentPage({ params, searchParams }: P
             {upcoming && (
               <div className="px-5 pb-5">
                 <AddToCalendar appointmentId={appt.id} start={appt.start_at} end={appt.end_at} mode={appt.mode} reference={appt.reference} />
+                {appt.mode !== "chat" && (
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    <p className="mb-2 text-sm font-medium text-slate-900">Check your {appt.mode === "video" ? "camera and microphone" : "microphone"} before the call</p>
+                    <DeviceCheck video={appt.mode === "video"} />
+                  </div>
+                )}
               </div>
             )}
           </Card>

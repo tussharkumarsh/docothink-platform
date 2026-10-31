@@ -17,6 +17,7 @@ import { formatMoney, splitCommission } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/time/format";
 import { nowMs } from "@/lib/time/now";
 import { AddToCalendar } from "@/features/appointments/components/add-to-calendar";
+import { DeviceCheck } from "@/features/consultation/components/device-check";
 
 export default async function DoctorAppointmentPage({ params, searchParams }: PageProps<"/doctor/appointments/[id]">) {
   const { id } = await params;
@@ -115,6 +116,7 @@ export default async function DoctorAppointmentPage({ params, searchParams }: Pa
               {appt.status === "confirmed" && Date.parse(appt.start_at) > nowMs() && (
                 <AddToCalendar appointmentId={appt.id} start={appt.start_at} end={appt.end_at} mode={appt.mode} reference={appt.reference} />
               )}
+              {appt.status === "confirmed" && appt.mode !== "chat" && <DeviceCheck video={appt.mode === "video"} />}
               {appt.status === "in_progress" && (
                 <form action={completeConsultationAction}>
                   <input type="hidden" name="appointment_id" value={appt.id} />
