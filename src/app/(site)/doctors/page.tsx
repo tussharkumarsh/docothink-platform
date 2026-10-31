@@ -85,7 +85,8 @@ export default async function DoctorsPage({ searchParams }: PageProps<"/doctors"
       <TimezoneCookie current={tzCookie} />
       <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Find a doctor</h1>
       <p className="mt-1 text-slate-600">
-        Only verified, approved doctors are listed. Times are shown in <strong>{viewerTz}</strong>.
+        Only verified, approved doctors are listed. Times are shown in <strong>{viewerTz}</strong>.{" "}
+        <Link href="/find-care" className="text-brand-700 hover:underline">Not sure which specialist?</Link>
       </p>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]">

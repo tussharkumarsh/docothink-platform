@@ -72,8 +72,8 @@ export default async function HomePage() {
           <ButtonLink href="/doctors" size="lg">
             Book a consultation
           </ButtonLink>
-          <Link href="/how-it-works" className="group inline-flex items-center gap-0.5 text-[17px] text-brand-700 hover:underline">
-            Learn how it works
+          <Link href="/find-care" className="group inline-flex items-center gap-0.5 text-[17px] text-brand-700 hover:underline">
+            Not sure which doctor? Find the right specialist
             <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
           </Link>
         </div>
