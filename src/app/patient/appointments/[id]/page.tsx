@@ -19,6 +19,7 @@ import {
 } from "@/features/booking/actions";
 import { paymentsConfigured, testPaymentsEnabled } from "@/lib/payments";
 import { ReviewForm } from "@/features/reviews/components/review-form";
+import { AddToCalendar } from "@/features/appointments/components/add-to-calendar";
 import { MODE_LABELS, type ConsultationMode } from "@/lib/domain";
 import { formatMoney, patientRefundPercent } from "@/lib/money";
 import { formatDateTime } from "@/lib/time/format";
@@ -86,6 +87,11 @@ export default async function PatientAppointmentPage({ params, searchParams }: P
               {intake && <div className="sm:col-span-2"><dt className="text-slate-500">Reason for visit</dt><dd className="whitespace-pre-line text-slate-800">{intake.reason_for_visit}</dd></div>}
               {appt.cancellation_reason && <div className="sm:col-span-2"><dt className="text-slate-500">Cancellation reason</dt><dd className="text-slate-800">{appt.cancellation_reason}</dd></div>}
             </dl>
+            {upcoming && (
+              <div className="px-5 pb-5">
+                <AddToCalendar appointmentId={appt.id} start={appt.start_at} end={appt.end_at} mode={appt.mode} reference={appt.reference} />
+              </div>
+            )}
           </Card>
 
           {appt.status === "pending_payment" && (

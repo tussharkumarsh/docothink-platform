@@ -15,6 +15,8 @@ import { cancelAppointmentAction } from "@/features/booking/actions";
 import { MODE_LABELS } from "@/lib/domain";
 import { formatMoney, splitCommission } from "@/lib/money";
 import { formatDate, formatDateTime } from "@/lib/time/format";
+import { nowMs } from "@/lib/time/now";
+import { AddToCalendar } from "@/features/appointments/components/add-to-calendar";
 
 export default async function DoctorAppointmentPage({ params, searchParams }: PageProps<"/doctor/appointments/[id]">) {
   const { id } = await params;
@@ -109,6 +111,9 @@ export default async function DoctorAppointmentPage({ params, searchParams }: Pa
                 <ButtonLink href={`/consult/${appt.id}`} className="w-full"><Video className="size-4" aria-hidden /> {appt.status === "in_progress" ? "Rejoin" : "Start consultation"}</ButtonLink>
               ) : (
                 <p className="text-sm text-slate-600">The room opens {settings.consultation.join_open_minutes_before} minutes before the start time.</p>
+              )}
+              {appt.status === "confirmed" && Date.parse(appt.start_at) > nowMs() && (
+                <AddToCalendar appointmentId={appt.id} start={appt.start_at} end={appt.end_at} mode={appt.mode} reference={appt.reference} />
               )}
               {appt.status === "in_progress" && (
                 <form action={completeConsultationAction}>
