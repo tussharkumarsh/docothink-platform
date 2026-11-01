@@ -10,7 +10,8 @@ import { withdrawInvoiceAction } from "@/features/finance/actions";
 import { INVOICE_STATUS } from "@/features/finance/invoice";
 import { formatMoney, formatPrice } from "@/lib/money";
 import { BarChart, HBar } from "@/components/charts/bar-chart";
-import { byMode } from "@/features/finance/breakdown";
+import { byMode, lastMonths } from "@/features/finance/breakdown";
+import { nowMs } from "@/lib/time/now";
 import { formatDate, formatDateTime } from "@/lib/time/format";
 
 /** "2026-10" → "Oct" (plus the year in January, so a 12-month axis stays unambiguous). */
@@ -43,6 +44,7 @@ export default async function EarningsPage({ searchParams }: PageProps<"/doctor/
   ]);
   const summaries = summarise(ledger, payouts ?? []);
   const months = monthly(ledger, viewer.timezone);
+  const thisMonth = new Intl.DateTimeFormat("en-CA", { timeZone: viewer.timezone, year: "numeric", month: "2-digit" }).format(nowMs());
   const rate = rules?.find((r) => r.doctor_id === viewer.id) ?? rules?.find((r) => r.doctor_id === null);
   const invoices = (payouts ?? []).filter((p) => p.source === "invoice");
 
@@ -127,11 +129,7 @@ export default async function EarningsPage({ searchParams }: PageProps<"/doctor/
                     <BarChart
                       title={`Net earnings by month (${s.currency})`}
                       format={(v) => formatPrice(v, s.currency)}
-                      data={months
-                        .filter((m) => m.currency === s.currency)
-                        .slice(0, 12)
-                        .reverse()
-                        .map((m) => ({ label: monthLabel(m.month), value: Math.max(0, m.net) }))}
+                      data={lastMonths(months, s.currency, thisMonth).map((m) => ({ label: monthLabel(m.month), value: Math.max(0, m.net) }))}
                     />
                   </div>
                 </Card>

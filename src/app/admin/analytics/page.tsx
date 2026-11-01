@@ -36,7 +36,7 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps<"/a
   const from = new Date(Date.parse(`${today}T00:00:00Z`) - (range - 1) * 86_400_000).toISOString().slice(0, 10);
 
   const [{ data, error }, { count: demoCount }] = await Promise.all([
-    supabase.rpc("admin_analytics", { p_from: from, p_to: today }),
+    supabase.rpc("admin_analytics", { p_from: from, p_to: today, p_tz: settings.display.admin_timezone }),
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_demo", true),
   ]);
   const a = data as Analytics | null;
@@ -75,7 +75,7 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps<"/a
             <Stat label="New patients" value={count(a.totals.new_patients)} />
             <Stat label="Average rating" value={a.totals.avg_rating ? `★ ${Number(a.totals.avg_rating).toFixed(1)}` : "—"} hint="reviews in range" />
             {finance && (a.revenue_totals ?? []).map((r) => (
-              <Stat key={r.currency} label={`Revenue (${r.currency})`} value={formatPrice(r.gross, r.currency)} hint={`Commission ${formatPrice(r.commission, r.currency)}`} />
+              <Stat key={r.currency} label={`Revenue (${r.currency})`} value={formatPrice(r.gross, r.currency)} hint={`Before refunds · commission ${formatPrice(r.commission, r.currency)}`} />
             ))}
           </div>
 
@@ -90,7 +90,7 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps<"/a
             </Card>
             {finance && [...new Set((a.revenue_by_week ?? []).map((r) => r.currency))].map((ccy) => (
               <Card key={ccy}>
-                <CardHeader title={`Revenue per week (${ccy})`} description="Gross consultation value of completed consultations." />
+                <CardHeader title={`Revenue per week (${ccy})`} description="Gross consultation value of completed consultations, before refunds." />
                 <div className="px-5 pb-5 pt-2">
                   <BarChart
                     title={`Revenue per week (${ccy})`}

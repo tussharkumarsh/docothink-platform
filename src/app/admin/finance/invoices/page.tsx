@@ -45,7 +45,7 @@ export default async function AdminInvoicesPage({ searchParams }: PageProps<"/ad
         actions={
           <div className="flex flex-wrap items-center gap-3 text-sm">
             {payoutCurrencies.map((c) => (
-              <a key={c} href={`/api/payout-file?currency=${c}`} download className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 font-medium text-brand-700 ring-1 ring-black/5 hover:bg-slate-100">
+              <a key={c} href={`/api/payout-file?currency=${c}`} download title="Bulk transfer list of approved invoices. Upload it to the bank as-is: re-saving in Excel can strip leading zeros from account numbers." className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 font-medium text-brand-700 ring-1 ring-black/5 hover:bg-slate-100">
                 <Download className="size-3.5" aria-hidden /> Bank file ({c})
               </a>
             ))}

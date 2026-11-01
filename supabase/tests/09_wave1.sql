@@ -20,10 +20,10 @@ where id in ('00000000-0000-4000-8000-00000000c001', '00000000-0000-4000-8000-00
 
 -- Analytics: patients are refused; admins get counts; money only with finance.manage.
 select tests.login('00000000-0000-4000-8000-000000000201');
-select tests.expect_error($$select public.admin_analytics(current_date - 30, current_date)$$, 'FORBIDDEN');
+select tests.expect_error($$select public.admin_analytics(current_date - 30, current_date, 'UTC')$$, 'FORBIDDEN');
 reset role;
 select tests.login('00000000-0000-4000-8000-000000000001');
-create temp table a1 as select public.admin_analytics(current_date - 30, current_date) as j;
+create temp table a1 as select public.admin_analytics(current_date - 30, current_date, 'UTC') as j;
 reset role;
 select tests.assert(((select j from a1) -> 'totals' ->> 'completed')::int = 2, 'two completed consultations');
 select tests.assert(((select j from a1) -> 'totals' ->> 'no_show')::int = 1, 'one no-show');
@@ -37,8 +37,8 @@ insert into auth.users (id, email, raw_user_meta_data) values
 update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-000000000194';
 insert into public.admin_permissions (user_id, permission) values ('00000000-0000-4000-8000-000000000194', 'doctors.manage');
 select tests.login('00000000-0000-4000-8000-000000000194');
-select tests.assert(not (public.admin_analytics(current_date - 30, current_date) ? 'revenue_totals'), 'no revenue without finance.manage');
-select tests.assert(not (public.admin_analytics(current_date - 30, current_date) ? 'revenue_by_week'), 'no weekly revenue without finance.manage');
+select tests.assert(not (public.admin_analytics(current_date - 30, current_date, 'UTC') ? 'revenue_totals'), 'no revenue without finance.manage');
+select tests.assert(not (public.admin_analytics(current_date - 30, current_date, 'UTC') ? 'revenue_by_week'), 'no weekly revenue without finance.manage');
 select tests.expect_error($$select * from public.payout_file('INR')$$, 'FORBIDDEN');
 reset role;
 
@@ -65,4 +65,27 @@ select tests.assert((select reference from f) = (select invoice_number from inv)
 select tests.assert(exists (select 1 from public.audit_logs where action = 'payout.file_export'), 'export is audited');
 select tests.login('00000000-0000-4000-8000-000000000001');
 select tests.assert((select count(*) from public.payout_file('GBP')) = 0, 'other currencies excluded');
+reset role;
+
+-- Anonymous callers can't run either report.
+set role anon;
+select tests.expect_error($$select public.admin_analytics(current_date - 30, current_date, 'UTC')$$, 'permission denied');
+select tests.expect_error($$select * from public.payout_file('INR')$$, 'permission denied');
+reset role;
+
+-- Day and week boundaries follow the admin display zone: 02:00 UTC on 10 Jan is 21:00 on 9 Jan in New York.
+insert into public.appointments (id, patient_id, doctor_id, mode, status, start_at, end_at, doctor_timezone, patient_timezone,
+  currency, fee_snapshot, fee_amount, amount_paid, commission_bps, created_at)
+values ('00000000-0000-4000-8000-00000000c009', '00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000101', 'chat', 'cancelled',
+  '2026-01-12 10:00+00', '2026-01-12 10:20+00', 'Asia/Kolkata', 'America/New_York', 'INR', '{"chat": 50000}', 50000, 0, 1000, '2026-01-10 02:00+00');
+select tests.login('00000000-0000-4000-8000-000000000001');
+select tests.assert((public.admin_analytics('2026-01-09', '2026-01-09', 'America/New_York') -> 'totals' ->> 'bookings')::int = 1, 'booking counted on its New York day');
+select tests.assert((public.admin_analytics('2026-01-09', '2026-01-09', 'UTC') -> 'totals' ->> 'bookings')::int = 0, 'not on that UTC day');
+select tests.expect_error($$select public.admin_analytics('2026-01-09', '2026-01-09', 'Mars/Olympus')$$, 'INVALID_TIMEZONE');
+-- Every week in the range has a point, zero when empty (5 Jan 2026 is a Monday).
+create temp table a2 as select public.admin_analytics('2026-01-01', '2026-01-31', 'America/New_York') as j;
+select tests.assert(jsonb_array_length((select j from a2) -> 'bookings_by_week') = 5, 'five weeks touch January 2026');
+select tests.assert(((select j from a2) -> 'bookings_by_week' -> 1 ->> 'week') = '2026-01-05', 'week of 5 Jan (New York Friday 9 Jan)');
+select tests.assert(((select j from a2) -> 'bookings_by_week' -> 1 ->> 'count')::int = 1, 'booking falls in the week of 5 Jan');
+select tests.assert(((select j from a2) -> 'bookings_by_week' -> 0 ->> 'count')::int = 0, 'empty weeks are zero, not missing');
 reset role;

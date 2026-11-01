@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mic, Video } from "lucide-react";
 import { Alert, Button } from "@/components/ui";
 
-type State = { status: "idle" } | { status: "testing" } | { status: "error"; message: string };
+type State = { status: "idle" } | { status: "starting" } | { status: "testing" } | { status: "error"; message: string };
 
 function describe(error: unknown): string {
   const name = error instanceof DOMException ? error.name : "";
@@ -27,8 +27,11 @@ export function DeviceCheck({ video }: { video: boolean }) {
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
   const frameRef = useRef<number | null>(null);
+  // Bumped by every start/stop and on unmount, so a permission prompt that resolves late releases its stream.
+  const attemptRef = useRef(0);
 
   function stop() {
+    attemptRef.current++;
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     frameRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -40,16 +43,28 @@ export function DeviceCheck({ video }: { video: boolean }) {
 
   useEffect(() => stop, []);
 
+  // The <video> only mounts once testing starts, so attach the stream after that render.
+  useEffect(() => {
+    if (state.status === "testing" && video && videoRef.current) videoRef.current.srcObject = streamRef.current;
+  }, [state.status, video]);
+
   async function start() {
     stop();
+    const attempt = attemptRef.current;
+    setState({ status: "starting" });
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new DOMException("unsupported", "NotSupportedError");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video });
+      if (attempt !== attemptRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
-      if (videoRef.current && video) videoRef.current.srcObject = stream;
 
       const ctx = new AudioContext();
       audioRef.current = ctx;
+      // Created after an await, so Safari may start it suspended.
+      void ctx.resume().catch(() => undefined);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
       ctx.createMediaStreamSource(stream).connect(analyser);
@@ -64,6 +79,7 @@ export function DeviceCheck({ video }: { video: boolean }) {
       tick();
       setState({ status: "testing" });
     } catch (error) {
+      if (attempt !== attemptRef.current) return;
       stop();
       setState({ status: "error", message: describe(error) });
     }
@@ -87,7 +103,7 @@ export function DeviceCheck({ video }: { video: boolean }) {
           <Button type="button" variant="secondary" size="sm" onClick={() => { stop(); setState({ status: "idle" }); }}>Stop test</Button>
         </>
       ) : (
-        <Button type="button" variant="secondary" size="sm" onClick={start}>
+        <Button type="button" variant="secondary" size="sm" onClick={start} disabled={state.status === "starting"}>
           {video ? <Video className="size-4" aria-hidden /> : <Mic className="size-4" aria-hidden />} Test {video ? "camera & microphone" : "microphone"}
         </Button>
       )}
