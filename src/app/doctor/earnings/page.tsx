@@ -8,8 +8,17 @@ import { monthly, summarise } from "@/features/finance/summary";
 import { RaiseInvoiceForm, type InvoiceableEntry } from "@/features/finance/components/raise-invoice-form";
 import { withdrawInvoiceAction } from "@/features/finance/actions";
 import { INVOICE_STATUS } from "@/features/finance/invoice";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, formatPrice } from "@/lib/money";
+import { BarChart, HBar } from "@/components/charts/bar-chart";
+import { byMode } from "@/features/finance/breakdown";
 import { formatDate, formatDateTime } from "@/lib/time/format";
+
+/** "2026-10" → "Oct" (plus the year in January, so a 12-month axis stays unambiguous). */
+function monthLabel(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  const name = new Date(Date.UTC(y, m - 1, 15)).toLocaleString("en-GB", { month: "short", timeZone: "UTC" });
+  return m === 1 ? `${name} ${String(y).slice(2)}` : name;
+}
 
 const ENTRY_LABELS = { consultation_earning: "Consultation", refund_reversal: "Refund adjustment", adjustment: "Adjustment", payout: "Payout" } as const;
 
@@ -110,6 +119,32 @@ export default async function EarningsPage({ searchParams }: PageProps<"/doctor/
                 <Stat label="Approved for payout" value={formatMoney(s.approved, s.currency)} />
                 <Stat label="Paid out" value={formatMoney(s.paid, s.currency)} />
                 {s.tdsWithheld > 0 && <Stat label="TDS withheld" value={formatMoney(s.tdsWithheld, s.currency)} hint="Deducted from paid invoices for the tax authority" />}
+              </div>
+              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <Card>
+                  <CardHeader title="Net earnings by month" description="Last 12 months, after commission and refunds." />
+                  <div className="px-5 pb-5 pt-2">
+                    <BarChart
+                      title={`Net earnings by month (${s.currency})`}
+                      format={(v) => formatPrice(v, s.currency)}
+                      data={months
+                        .filter((m) => m.currency === s.currency)
+                        .slice(0, 12)
+                        .reverse()
+                        .map((m) => ({ label: monthLabel(m.month), value: Math.max(0, m.net) }))}
+                    />
+                  </div>
+                </Card>
+                <Card>
+                  <CardHeader title="By consultation type" />
+                  <div className="px-5 pb-5 pt-2">
+                    <HBar
+                      title={`Net earnings by consultation type (${s.currency})`}
+                      format={(v) => formatPrice(v, s.currency)}
+                      data={byMode(ledger, s.currency).map((m) => ({ label: m.mode, value: m.net }))}
+                    />
+                  </div>
+                </Card>
               </div>
             </section>
           ))}
