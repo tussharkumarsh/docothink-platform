@@ -1,13 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getViewer, hasPermission } from "@/lib/auth/viewer";
+import { csvCell } from "@/lib/csv";
 import { createClient } from "@/lib/supabase/server";
-
-function csvCell(value: unknown): string {
-  const s = value == null ? "" : String(value);
-  // Neutralise spreadsheet formula injection and quote everything.
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-  return `"${safe.replaceAll('"', '""')}"`;
-}
 
 const isDate = (v: string | null): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { Badge, Button, Card, EmptyState, PageHeader, Select, Table } from "@/components/ui";
 import { requirePermission } from "@/lib/auth/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +32,9 @@ export default async function AdminInvoicesPage({ searchParams }: PageProps<"/ad
     .limit(300);
   if (filter === "open") query = query.in("status", ["pending", "under_review", "approved"]);
   else if (filter !== "all") query = query.eq("status", filter);
-  const [{ data }, settings] = await Promise.all([query, getPlatformSettings()]);
+  const approvedQuery = supabase.from("doctor_payouts").select("currency").eq("source", "invoice").eq("status", "approved");
+  const [{ data }, settings, { data: approved }] = await Promise.all([query, getPlatformSettings(), approvedQuery]);
+  const payoutCurrencies = [...new Set((approved ?? []).map((r) => r.currency as string))].sort();
   const tz = settings.display.admin_timezone;
 
   return (
@@ -40,7 +42,16 @@ export default async function AdminInvoicesPage({ searchParams }: PageProps<"/ad
       <PageHeader
         title="Invoices"
         description="Doctor settlement invoices. Approve, transfer the net amount from the company account, then mark paid with the bank reference."
-        actions={<Link href="/admin/finance" className="text-sm text-brand-700 hover:underline">← Finance</Link>}
+        actions={
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            {payoutCurrencies.map((c) => (
+              <a key={c} href={`/api/payout-file?currency=${c}`} download className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 font-medium text-brand-700 ring-1 ring-black/5 hover:bg-slate-100">
+                <Download className="size-3.5" aria-hidden /> Bank file ({c})
+              </a>
+            ))}
+            <Link href="/admin/finance" className="text-brand-700 hover:underline">← Finance</Link>
+          </div>
+        }
       />
       <form className="mb-4 flex gap-2">
         <Select name="status" defaultValue={filter} aria-label="Status" className="max-w-xs">

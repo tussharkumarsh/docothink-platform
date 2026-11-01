@@ -1,13 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getViewer, hasPermission } from "@/lib/auth/viewer";
+import { csvCell } from "@/lib/csv";
 import { getLedger } from "@/features/finance/queries";
-
-function csvCell(value: unknown): string {
-  const s = value == null ? "" : String(value);
-  // Neutralise spreadsheet formula injection and quote everything.
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-  return `"${safe.replaceAll('"', '""')}"`;
-}
 
 /** Ledger statement as CSV. Doctors get their own; finance admins can pass ?doctor=<id> or get all. */
 export async function GET(request: NextRequest) {
