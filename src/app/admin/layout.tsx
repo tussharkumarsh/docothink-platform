@@ -1,8 +1,9 @@
-import { CalendarDays, ClipboardList, LayoutDashboard, Landmark, ListTree, ScrollText, Settings, Star, Stethoscope, Users } from "lucide-react";
+import { ChartColumn, CalendarDays, ClipboardList, LayoutDashboard, Landmark, ListTree, ScrollText, Settings, Star, Stethoscope, Users } from "lucide-react";
 import { PortalShell } from "@/components/layout/portal-shell";
 
 const NAV = [
   { href: "/admin", label: "Overview", icon: <LayoutDashboard /> },
+  { href: "/admin/analytics", label: "Analytics", icon: <ChartColumn /> },
   { href: "/admin/doctors", label: "Doctors", icon: <Stethoscope /> },
   { href: "/admin/patients", label: "Patients", icon: <Users /> },
   { href: "/admin/appointments", label: "Appointments", icon: <CalendarDays /> },

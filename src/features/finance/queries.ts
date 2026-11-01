@@ -16,7 +16,7 @@ export async function getLedger(filter: { doctorId?: string; currency?: string; 
   if (error) throw new Error("Could not load ledger");
   return (data ?? []).map((r) => ({
     ...(r as Omit<typeof r, "payout_items" | "appointments">),
-    mode: ((r as { appointments?: { mode: string } | null }).appointments?.mode ?? null) as string | null,
+    mode: ((r as unknown as { appointments?: { mode: string } | null }).appointments?.mode ?? null) as string | null,
     in_payout: Array.isArray(r.payout_items) ? r.payout_items.length > 0 : Boolean(r.payout_items),
   })) as (LedgerRow & { description: string; appointment_id: string | null; mode: string | null })[];
 }
