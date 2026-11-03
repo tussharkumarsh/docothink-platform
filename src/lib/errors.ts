@@ -75,6 +75,7 @@ const MESSAGES: Record<string, string> = {
   NOTHING_SELECTED: "Select at least one consultation.",
   ENTRY_NOT_INVOICEABLE: "One of the selected consultations is no longer available to invoice. Refresh and try again.",
   MIXED_CURRENCY: "An invoice can only include consultations in one currency.",
+  TEMPLATE_LIMIT: "You've reached the limit of 50 templates. Delete one to add another.",
   STALE_DETAILS: "The doctor changed these details after you opened the page. Reload and check them again before deciding.",
 };
 
