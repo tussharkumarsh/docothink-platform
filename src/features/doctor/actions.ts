@@ -199,6 +199,7 @@ export async function addExceptionAction(_: ActionResult, formData: FormData): P
   const { error } = await supabase.from("doctor_availability_exceptions").insert({ doctor_id: viewer.id, starts_at: start.toString(), ends_at: end.toString(), reason: d.reason || null });
   if (error) return { ok: false, error: friendlyError(error) };
   revalidatePath("/doctor/availability");
+  revalidatePath("/doctor/calendar");
   return {
     ok: true,
     message: clash?.length
@@ -212,6 +213,7 @@ export async function deleteExceptionAction(formData: FormData) {
   const supabase = await createClient();
   await supabase.from("doctor_availability_exceptions").delete().eq("id", z.string().uuid().parse(formData.get("exception_id")));
   revalidatePath("/doctor/availability");
+  revalidatePath("/doctor/calendar");
 }
 
 export async function updateBookingSettingsAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
