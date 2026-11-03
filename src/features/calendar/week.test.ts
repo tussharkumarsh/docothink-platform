@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hourRange, placeItems, weekDays, workingBands } from "./week";
+import { hourRange, placeItems, visibleRange, weekBounds, weekDays, workingBands } from "./week";
 
 const WEEK = ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07", "2026-11-08"];
 
@@ -105,5 +105,22 @@ describe("hourRange", () => {
   it("widens to whole hours for anything outside", () => {
     expect(hourRange([{ startMin: 375, endMin: 390 }])).toEqual({ from: 360, to: 1260 });
     expect(hourRange([{ startMin: 1275, endMin: 1300 }])).toEqual({ from: 420, to: 1320 });
+  });
+});
+
+describe("visibleRange", () => {
+  it("doesn't let a full-day block stretch the grid to 24 hours", () => {
+    expect(visibleRange([], [{ startMin: 0, endMin: 1440 }])).toEqual({ from: 420, to: 1260 });
+  });
+
+  it("widens for appointments and for a block otherwise out of sight", () => {
+    expect(visibleRange([{ startMin: 360, endMin: 390 }], [])).toEqual({ from: 360, to: 1260 });
+    expect(visibleRange([], [{ startMin: 1320, endMin: 1380 }])).toEqual({ from: 420, to: 1380 });
+  });
+});
+
+describe("weekBounds", () => {
+  it("runs from local midnight on Monday to local midnight after Sunday", () => {
+    expect(weekBounds(WEEK, "Asia/Kolkata")).toEqual({ from: "2026-11-01T18:30:00Z", to: "2026-11-08T18:30:00Z" });
   });
 });

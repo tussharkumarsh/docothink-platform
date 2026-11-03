@@ -119,3 +119,18 @@ export function hourRange(placed: { startMin: number; endMin: number }[]): { fro
   }
   return { from, to };
 }
+
+/**
+ * The grid's hours. Appointments and working hours always fit; a block only widens the grid when none of it
+ * would otherwise show, so a day off doesn't stretch every week to 24 hours.
+ */
+export function visibleRange(solid: { startMin: number; endMin: number }[], blocks: { startMin: number; endMin: number }[]) {
+  const base = hourRange(solid);
+  return hourRange([...solid, ...blocks.filter((b) => b.endMin <= base.from || b.startMin >= base.to)]);
+}
+
+/** The instants a week covers in `tz`, for querying. */
+export function weekBounds(days: string[], tz: string): { from: string; to: string } {
+  const start = (date: Temporal.PlainDate) => date.toZonedDateTime(tz).toInstant().toString();
+  return { from: start(Temporal.PlainDate.from(days[0])), to: start(Temporal.PlainDate.from(days[days.length - 1]).add({ days: 1 })) };
+}

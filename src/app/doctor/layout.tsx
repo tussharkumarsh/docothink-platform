@@ -1,9 +1,10 @@
-import { CalendarClock, CalendarDays, ClipboardCheck, LayoutDashboard, UserRound, Users, Wallet } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarRange, ClipboardCheck, LayoutDashboard, UserRound, Users, Wallet } from "lucide-react";
 import { PortalShell } from "@/components/layout/portal-shell";
 
 const NAV = [
   { href: "/doctor", label: "Dashboard", icon: <LayoutDashboard /> },
   { href: "/doctor/appointments", label: "Appointments", icon: <CalendarDays /> },
+  { href: "/doctor/calendar", label: "Calendar", icon: <CalendarRange /> },
   { href: "/doctor/availability", label: "Availability", icon: <CalendarClock /> },
   { href: "/doctor/patients", label: "Patients", icon: <Users /> },
   { href: "/doctor/earnings", label: "Earnings", icon: <Wallet /> },
