@@ -41,4 +41,8 @@ describe("nextBlockStart", () => {
     expect(nextBlockStart("2026-11-04", "2026-11-03", 605, 600)).toBe(600);
     expect(nextBlockStart("2026-11-04", "2026-11-03", 605, undefined)).toBe(540);
   });
+
+  it("rounds working hours down to a half hour the time field accepts", () => {
+    expect(nextBlockStart("2026-11-04", "2026-11-03", 605, 555)).toBe(540);
+  });
 });

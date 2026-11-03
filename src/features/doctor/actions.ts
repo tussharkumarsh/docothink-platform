@@ -323,6 +323,7 @@ export async function savePrescriptionAction(_: ActionResult, formData: FormData
     revalidatePath("/doctor", "layout");
     return { ok: true, message: "Prescription finalised and shared with the patient." };
   }
+  revalidatePath("/doctor/appointments/[id]/prescription", "page");
   return { ok: true, message: "Draft saved." };
 }
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { Field, Input, Textarea, buttonClasses } from "@/components/ui";
-import { FormMessage, SubmitButton } from "@/components/ui/form-client";
+import { FormMessage, SubmitButton, submitKeepingValues } from "@/components/ui/form-client";
 import { idle, type ActionResult } from "@/lib/errors";
 import { saveTemplateAction } from "../actions";
 import type { Template } from "../templates";
@@ -20,7 +20,7 @@ export function TemplateForm({ template }: { template: Template | null }) {
   }, [state, router]);
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} onSubmit={submitKeepingValues(action)} className="space-y-6">
       {template && <input type="hidden" name="template_id" value={template.id} />}
       <FormMessage state={state} />
       <p className="text-sm text-slate-600">Don&apos;t include patient details.</p>

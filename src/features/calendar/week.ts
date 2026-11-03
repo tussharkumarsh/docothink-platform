@@ -134,3 +134,14 @@ export function weekBounds(days: string[], tz: string): { from: string; to: stri
   const start = (date: Temporal.PlainDate) => date.toZonedDateTime(tz).toInstant().toString();
   return { from: start(Temporal.PlainDate.from(days[0])), to: start(Temporal.PlainDate.from(days[days.length - 1]).add({ days: 1 })) };
 }
+
+/** Appointments and blocks placed together, so a block over a booked appointment sits beside it. */
+export function placeCalendar(
+  appointments: { id: string; start: string; end: string }[],
+  blocks: { id: string; start: string; end: string }[],
+  days: string[],
+  tz: string,
+) {
+  const placed = placeItems([...appointments, ...blocks.map((b) => ({ ...b, id: `block:${b.id}` }))], days, tz);
+  return { appointments: placed.filter((p) => !p.id.startsWith("block:")), blocks: placed.filter((p) => p.id.startsWith("block:")) };
+}

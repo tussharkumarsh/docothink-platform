@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hourRange, placeItems, visibleRange, weekBounds, weekDays, workingBands } from "./week";
+import { hourRange, placeCalendar, placeItems, visibleRange, weekBounds, weekDays, workingBands } from "./week";
 
 const WEEK = ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07", "2026-11-08"];
 
@@ -122,5 +122,19 @@ describe("visibleRange", () => {
 describe("weekBounds", () => {
   it("runs from local midnight on Monday to local midnight after Sunday", () => {
     expect(weekBounds(WEEK, "Asia/Kolkata")).toEqual({ from: "2026-11-01T18:30:00Z", to: "2026-11-08T18:30:00Z" });
+  });
+});
+
+describe("placeCalendar", () => {
+  it("puts a block over a booked appointment side by side with it", () => {
+    const { appointments, blocks } = placeCalendar(
+      [{ id: "appt", start: "2026-11-03T10:00:00Z", end: "2026-11-03T10:30:00Z" }],
+      [{ id: "b1", start: "2026-11-03T10:00:00Z", end: "2026-11-03T12:00:00Z" }],
+      WEEK,
+      "UTC",
+    );
+    expect(appointments[0]).toMatchObject({ id: "appt", columns: 2 });
+    expect(blocks[0]).toMatchObject({ id: "block:b1", columns: 2 });
+    expect(appointments[0].column).not.toBe(blocks[0].column);
   });
 });

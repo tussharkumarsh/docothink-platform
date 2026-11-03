@@ -51,14 +51,15 @@ function AppointmentChip({ a, timezone, past }: { a: AppointmentRow; timezone: s
   );
 }
 
-function BlockChip({ b, timezone }: { b: CalendarBlock; timezone: string }) {
+export function BlockChip({ b, timezone }: { b: CalendarBlock; timezone: string }) {
   const range = `${formatDateTime(b.starts_at, timezone, { withZone: false })} to ${formatDateTime(b.ends_at, timezone, { withZone: false })}`;
   return (
-    <div data-item title={`Blocked ${range}`} style={HATCH} className="relative h-full overflow-hidden rounded-md py-0.5 pl-1.5 pr-6 text-[11px] leading-tight text-slate-700 ring-1 ring-slate-200">
+    <div data-item title={`Blocked ${range}`} style={HATCH} className="relative h-full min-h-12 overflow-hidden rounded-md py-0.5 pl-1.5 pr-12 text-[11px] leading-tight text-slate-700 ring-1 ring-slate-200 md:min-h-0 md:pr-6">
       <span className="font-medium">Blocked</span>{b.reason ? ` · ${b.reason}` : ""}
+      <span className="block md:hidden">{range}</span>
       <form action={deleteExceptionAction} className="absolute right-0.5 top-0.5">
         <input type="hidden" name="exception_id" value={b.id} />
-        <ConfirmSubmit variant="ghost" size="sm" aria-label={`Remove block, ${range}`} message={`Remove this block? ${range}`} className="size-5 min-h-0 rounded p-0">
+        <ConfirmSubmit variant="ghost" size="sm" aria-label={`Remove block, ${range}`} message={`Remove this block? ${range}`} className="size-11 min-h-0 rounded p-0 md:size-5">
           <X className="size-3" aria-hidden />
         </ConfirmSubmit>
       </form>

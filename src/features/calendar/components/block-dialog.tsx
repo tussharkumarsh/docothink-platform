@@ -2,7 +2,7 @@
 
 import { createContext, useActionState, useCallback, useContext, useEffect, useRef, useState, type ComponentProps, type MouseEvent, type ReactNode } from "react";
 import { Button, Field, Input, Select } from "@/components/ui";
-import { FormMessage, SubmitButton } from "@/components/ui/form-client";
+import { FormMessage, SubmitButton, submitKeepingValues } from "@/components/ui/form-client";
 import { addExceptionAction } from "@/features/doctor/actions";
 import { idle, type ActionResult } from "@/lib/errors";
 import { blockEnd, isBlockable, type BlockLength } from "../block";
@@ -23,13 +23,15 @@ function BlockForm({ date: initialDate, min, timezone, onDone }: { date: string;
   const [length, setLength] = useState<BlockLength>("60");
   const end = date && time ? blockEnd(date, toMinutes(time), length) : { end_date: "", end_time: "" };
 
+  const blocked = state.ok && Boolean(state.message);
+
   // Stay open when the action warns about a clash, so the doctor reads it.
   useEffect(() => {
     if (state.ok && state.message === "Time blocked.") onDone();
   }, [state, onDone]);
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} onSubmit={submitKeepingValues(action)} className="space-y-4">
       <h2 className="text-base font-semibold text-slate-900">Block time</h2>
       <p className="text-xs text-slate-500">Times in {timezone}. Patients can&apos;t book blocked time.</p>
       <FormMessage state={state} />
@@ -50,8 +52,8 @@ function BlockForm({ date: initialDate, min, timezone, onDone }: { date: string;
       </Field>
       <Field label="Reason (optional)" htmlFor="block-reason"><Input id="block-reason" name="reason" maxLength={200} /></Field>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onDone}>{state.ok && state.message ? "Close" : "Cancel"}</Button>
-        <SubmitButton pendingText="Blocking…">Block time</SubmitButton>
+        <Button type="button" variant="ghost" onClick={onDone}>{blocked ? "Close" : "Cancel"}</Button>
+        {!blocked && <SubmitButton pendingText="Blocking…">Block time</SubmitButton>}
       </div>
     </form>
   );

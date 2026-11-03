@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, startTransition, type FormEvent } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
@@ -81,4 +81,17 @@ export function ConfirmSubmit({ message, children, ...props }: ComponentProps<ty
       {children}
     </Button>
   );
+}
+
+/**
+ * For forms whose fields hold work in progress. React resets a form after its `action` runs, returning every
+ * uncontrolled field to its default. Running the action from `onSubmit` skips that reset, and useFormStatus still
+ * reports pending. Keep `action` on the form too, so a submit before hydration still works.
+ */
+export function submitKeepingValues(action: (data: FormData) => void) {
+  return (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
+    startTransition(() => action(data));
+  };
 }

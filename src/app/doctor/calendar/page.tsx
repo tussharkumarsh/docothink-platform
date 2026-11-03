@@ -4,7 +4,7 @@ import { requireApprovedDoctor } from "@/lib/auth/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { nowMs } from "@/lib/time/now";
 import { listAppointments } from "@/features/appointments/queries";
-import { placeItems, visibleRange, weekBounds, weekDays, workingBands } from "@/features/calendar/week";
+import { placeCalendar, visibleRange, weekBounds, weekDays, workingBands } from "@/features/calendar/week";
 import { WeekGrid } from "@/features/calendar/components/week-grid";
 
 const HIDDEN = new Set(["cancelled", "refunded", "expired"]);
@@ -30,9 +30,13 @@ export default async function DoctorCalendarPage({ searchParams }: PageProps<"/d
   if (rulesError || exceptionsError) throw new Error("Could not load calendar");
 
   const visible = appointments.filter((a) => !HIDDEN.has(a.status));
-  const placedAppointments = placeItems(visible.map((a) => ({ id: a.id, start: a.start_at, end: a.end_at })), days, tz);
   const blocks = exceptions ?? [];
-  const placedBlocks = placeItems(blocks.map((b) => ({ id: `block:${b.id}`, start: b.starts_at, end: b.ends_at })), days, tz);
+  const { appointments: placedAppointments, blocks: placedBlocks } = placeCalendar(
+    visible.map((a) => ({ id: a.id, start: a.start_at, end: a.end_at })),
+    blocks.map((b) => ({ id: b.id, start: b.starts_at, end: b.ends_at })),
+    days,
+    tz,
+  );
   const bands = workingBands(rules ?? [], days, tz);
 
   return (

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useRef, useState, useTransition } from "react";
 import { Alert, Button, Field, Input, Select, Textarea } from "@/components/ui";
-import { FormMessage, SubmitButton } from "@/components/ui/form-client";
+import { FormMessage, SubmitButton, submitKeepingValues } from "@/components/ui/form-client";
 import { idle, type ActionResult } from "@/lib/errors";
 import { savePrescriptionAction } from "@/features/doctor/actions";
 import { saveTemplateAction } from "../actions";
@@ -25,15 +25,7 @@ function readRows(data: FormData): TemplateItem[] {
 
 export function PrescriptionEditor({ rx, templates }: { rx: PrescriptionView; templates: Template[] }) {
   const [state, action] = useActionState<ActionResult, FormData>(savePrescriptionAction, idle);
-  const savedItems = [...rx.prescription_items].sort((a, b) => a.position - b.position);
-  const medicines = useMedicineRows(savedItems);
-  // React resets the form after a save, back to each input's default: keep those defaults on what was saved.
-  const savedKey = JSON.stringify(savedItems);
-  const [seenSaved, setSeenSaved] = useState(savedKey);
-  if (savedKey !== seenSaved) {
-    setSeenSaved(savedKey);
-    medicines.replaceAll(savedItems.length ? savedItems : [{}]);
-  }
+  const medicines = useMedicineRows([...rx.prescription_items].sort((a, b) => a.position - b.position));
   const formRef = useRef<HTMLFormElement>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState("");
@@ -63,7 +55,6 @@ export function PrescriptionEditor({ rx, templates }: { rx: PrescriptionView; te
     for (const field of TEXT_FIELDS) (form.elements.namedItem(field) as HTMLTextAreaElement).value = merged[field];
   }
 
-  // Calls the action directly: a form action would reset the form and lose unsaved typing.
   function saveAsTemplate() {
     const form = formRef.current;
     if (!form) return;
@@ -79,7 +70,7 @@ export function PrescriptionEditor({ rx, templates }: { rx: PrescriptionView; te
   );
 
   return (
-    <form ref={formRef} action={action} className="space-y-6">
+    <form ref={formRef} action={action} onSubmit={submitKeepingValues(action)} className="space-y-6">
       <input type="hidden" name="prescription_id" value={rx.id} />
       <FormMessage state={state} />
       {rx.version > 1 && (

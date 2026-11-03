@@ -21,7 +21,7 @@ export function isBlockable(date: string, min: number, today: string, nowMin: nu
 /** Where a day's "Block time" button starts: null when the day is over. */
 export function nextBlockStart(date: string, today: string, nowMin: number, firstBandStart: number | undefined): number | null {
   if (date < today) return null;
-  if (date > today) return firstBandStart ?? 540;
+  if (date > today) return Math.floor((firstBandStart ?? 540) / 30) * 30;
   const next = Math.ceil(nowMin / 30) * 30;
   return next >= 1440 ? null : next;
 }
