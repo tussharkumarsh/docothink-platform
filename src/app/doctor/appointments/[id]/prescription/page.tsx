@@ -8,6 +8,7 @@ import { getAppointment } from "@/features/appointments/queries";
 import { PRESCRIPTION_SELECT, PrescriptionDocument, type PrescriptionView } from "@/features/prescriptions/components/prescription-document";
 import { PrescriptionEditor } from "@/features/prescriptions/components/prescription-editor";
 import { PrintButton } from "@/features/prescriptions/components/print-button";
+import type { Template } from "@/features/prescriptions/templates";
 import { amendPrescriptionAction } from "@/features/doctor/actions";
 
 export default async function PrescriptionPage({ params }: PageProps<"/doctor/appointments/[id]/prescription">) {
@@ -16,7 +17,10 @@ export default async function PrescriptionPage({ params }: PageProps<"/doctor/ap
   const appt = await getAppointment(id);
   if (!appt || appt.doctor_id !== viewer.id) notFound();
   const supabase = await createClient();
-  const { data } = await supabase.from("prescriptions").select(PRESCRIPTION_SELECT).eq("appointment_id", id).order("version", { ascending: false });
+  const [{ data }, { data: templates }] = await Promise.all([
+    supabase.from("prescriptions").select(PRESCRIPTION_SELECT).eq("appointment_id", id).order("version", { ascending: false }),
+    supabase.from("prescription_templates").select("id, name, items, treatment_plan, advice, follow_up").eq("doctor_id", viewer.id).order("name"),
+  ]);
   const versions = (data ?? []) as unknown as PrescriptionView[];
   const draft = versions.find((v) => v.status === "draft");
   const final = versions.find((v) => v.status === "final");
@@ -31,7 +35,7 @@ export default async function PrescriptionPage({ params }: PageProps<"/doctor/ap
         {draft && (
           <Card>
             <CardHeader title={draft.version > 1 ? `Amendment draft (v${draft.version})` : "Draft"} description="Only you can see drafts. The patient is notified when you finalise." />
-            <div className="p-5"><PrescriptionEditor rx={draft} /></div>
+            <div className="p-5"><PrescriptionEditor key={draft.id} rx={draft} templates={(templates ?? []) as Template[]} /></div>
           </Card>
         )}
         {!draft && !final && (
